@@ -1,0 +1,1038 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Editorial Carousel Storyboard</title>
+<script src="https://cdn.tailwindcss.com/3.4.17"></script>
+<script src="https://cdn.jsdelivr.net/npm/lucide@0.263.0/dist/umd/lucide.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Libre+Franklin:wght@400;500;600;700;800;900&family=Playfair+Display:ital,wght@0,400;0,600;0,700;0,800;1,400;1,600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --cream: #f7f0df;
+  --paper: #fffaf0;
+  --ink: #10191d;
+  --blue: #0c3150;
+  --teal: #1e8885;
+  --gold: #c89834;
+  --muted: #617078;
+  --line: rgba(12, 49, 80, 0.18);
+}
+
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  width: 100%;
+  min-height: calc(100 * min(var(--vh, 1vh), 1vh));
+  background: var(--cream);
+  color: var(--ink);
+  font-family: "Libre Franklin", sans-serif;
+}
+
+button, input, textarea, select { font: inherit; }
+button { cursor: pointer; }
+button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-visible {
+  outline: 3px solid rgba(30, 136, 133, 0.45);
+  outline-offset: 3px;
+}
+
+.display-serif { font-family: "Playfair Display", serif; }
+
+.app-shell {
+  width: 100%;
+  min-height: calc(100 * min(var(--vh, 1vh), 1vh));
+  background: linear-gradient(90deg, rgba(200, 152, 52, 0.08) 1px, transparent 1px) 0 0 / 54px 54px, var(--cream);
+}
+
+.field-control {
+  width: 100%;
+  border: 1px solid rgba(12, 49, 80, 0.22);
+  background: rgba(255, 250, 240, 0.82);
+  color: var(--ink);
+  border-radius: 10px;
+  padding: 0.7rem 0.8rem;
+  transition: border-color 160ms ease, box-shadow 160ms ease;
+}
+.field-control:hover { border-color: var(--teal); }
+textarea.field-control { min-height: 84px; resize: vertical; }
+
+.action-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.46rem;
+  border-radius: 999px;
+  padding: 0.68rem 0.92rem;
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  transition: transform 160ms ease, box-shadow 160ms ease, background 160ms ease;
+}
+.action-button:hover { transform: translateY(-1px); }
+.action-button:active { transform: translateY(0); }
+
+.carousel-card {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 4 / 5;
+  overflow: hidden;
+  border-radius: 3px;
+  background: var(--paper);
+  box-shadow: 0 22px 52px rgba(7, 25, 38, 0.24);
+  isolation: isolate;
+}
+
+/* Border controls */
+.carousel-card::after {
+  content: "";
+  position: absolute;
+  inset: 12px;
+  border: 1px solid rgba(200, 152, 52, 0.55);
+  pointer-events: none;
+  z-index: 3;
+}
+.carousel-card.no-border::after { display: none; }
+
+.photo-surface {
+  position: absolute;
+  inset: 0;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+.photo-surface-2 {
+  position: absolute;
+  inset: auto 0 0 0;
+  height: 50%;
+  background-position: center;
+  background-repeat: no-repeat;
+  display: none; 
+}
+
+.fit-cover { background-size: cover; }
+.fit-contain { background-size: contain; background-color: var(--paper); }
+
+.layout-text-first .photo-surface {
+  inset: auto 0 0 0;
+  height: 40%;
+  filter: saturate(0.88);
+}
+.layout-stacked .photo-surface {
+  inset: 0 0 auto 0;
+  height: 50%;
+}
+.layout-stacked .photo-surface-2 {
+  display: block; 
+}
+
+.card-content {
+  position: relative;
+  z-index: 2;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: clamp(1.3rem, 4.4vw, 2.4rem);
+}
+
+.card-meta-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  min-height: 1.5rem;
+  margin-bottom: 0.55rem;
+}
+
+.card-footer-row {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 0.75rem;
+  min-height: 1.5rem;
+}
+
+.card-headline {
+  margin: 0 0 1rem 0;
+  min-height: 2.88em; 
+  max-width: 92%;
+  font-family: "Playfair Display", serif;
+  font-size: clamp(1.85rem, 6.5vw, 3.6rem);
+  font-weight: 700;
+  line-height: 0.96;
+  letter-spacing: -0.05em;
+}
+
+.card-body {
+  margin: 0;
+  min-height: 4.65em; 
+  max-width: 90%;
+  font-family: "Playfair Display", serif; 
+  font-size: clamp(0.95rem, 2.5vw, 1.25rem);
+  font-weight: 400;
+  line-height: 1.5;
+  letter-spacing: 0.02em;
+  opacity: 0.95;
+  white-space: pre-line;
+}
+
+.is-italicized h3, 
+.is-italicized p, 
+.is-italicized span {
+  font-style: italic !important;
+}
+
+.hide-text { display: none !important; }
+
+.overlay-none { background: transparent; }
+.overlay-dark { background: linear-gradient(180deg, rgba(7, 25, 38, 0.3) 0%, rgba(7, 25, 38, 0.85) 100%); color: var(--paper); }
+.overlay-teal { background: linear-gradient(180deg, rgba(30, 136, 133, 0.3) 0%, rgba(30, 136, 133, 0.85) 100%); color: var(--paper); }
+
+.contrast-standard h3, .contrast-standard p, .contrast-standard span {
+  color: var(--ink) !important;
+  text-shadow: 0px 2px 4px rgba(255,255,255,0.4); 
+}
+.contrast-cream h3, .contrast-cream p, .contrast-cream span {
+  color: var(--paper) !important;
+  text-shadow: 0px 2px 6px rgba(0,0,0,0.7);
+}
+.contrast-gold h3, .contrast-gold p, .contrast-gold span {
+  color: var(--gold) !important;
+  text-shadow: 0px 2px 4px rgba(0,0,0,0.6);
+}
+.contrast-teal h3, .contrast-teal p, .contrast-teal span {
+  color: var(--teal) !important;
+  text-shadow: 0px 2px 4px rgba(255,255,255,0.6);
+}
+.contrast-blue h3, .contrast-blue p, .contrast-blue span {
+  color: var(--blue) !important;
+  text-shadow: 0px 2px 4px rgba(255,255,255,0.6);
+}
+
+.card-kicker {
+  font-size: clamp(0.58rem, 1.7vw, 0.78rem);
+  text-transform: uppercase;
+  font-weight: 800;
+  letter-spacing: 0.17em;
+  color: var(--gold);
+}
+
+.card-number {
+  font-size: clamp(0.6rem, 1.7vw, 0.78rem);
+  font-weight: 800;
+  letter-spacing: 0.13em;
+}
+
+.card-caption {
+  max-width: 78%;
+  font-size: clamp(0.57rem, 1.55vw, 0.72rem);
+  line-height: 1.45;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.thumb-item {
+  flex: 0 0 86px;
+  aspect-ratio: 4 / 5;
+  overflow: hidden;
+  position: relative;
+  border: 2px solid transparent;
+  border-radius: 7px;
+  background: var(--paper);
+  box-shadow: 0 5px 12px rgba(12, 49, 80, 0.13);
+  transition: border-color 160ms ease, transform 160ms ease, opacity 160ms ease;
+  cursor: grab;
+}
+
+.thumb-item:active { cursor: grabbing; }
+.thumb-item:hover { transform: translateY(-2px); }
+.thumb-item.is-active { border-color: var(--teal); box-shadow: 0 0 0 3px rgba(30, 136, 133, 0.18); }
+.thumb-item.is-dragging { opacity: 0.4; transform: scale(0.95); }
+.thumb-item.drag-over { border-color: var(--gold); border-style: dashed; transform: scale(1.05); }
+
+.thumb-photo { position: absolute; inset: 0; background-size: cover; background-position: center; }
+.thumb-copy { position: relative; z-index: 1; padding: 0.48rem; height: 100%; display: flex; flex-direction: column; justify-content: flex-end; pointer-events: none; }
+.thumb-title { font-family: "Playfair Display", serif; font-size: 0.68rem; font-weight: 700; line-height: 1.02; pointer-events: none; }
+
+@media (max-width: 1023px) {
+  .workspace-grid { grid-template-columns: 1fr !important; }
+  .preview-area { order: -1; }
+  .carousel-card { max-width: 420px; margin-inline: auto; }
+}
+</style>
+</head>
+<body>
+<div class="app-shell">
+<header class="bg-[#0c3150] text-[#fffaf0] px-5 py-7 md:px-10 md:py-9">
+  <div class="max-w-7xl mx-auto">
+    <div class="flex flex-wrap items-end justify-between gap-5">
+      <div class="max-w-3xl">
+        <p class="text-[#c89834] uppercase tracking-[0.22em] font-extrabold text-xs mb-3">THE CAROUSEL EDITOR</p>
+        <h1 class="display-serif font-bold leading-none tracking-[-0.05em] text-[32px]">Stories with a little more staying power.</h1>
+        <p class="text-[#d9e3de] mt-4 max-w-2xl leading-relaxed text-base">Build a calm, considered Instagram sequence — one visual beat at a time.</p>
+      </div>
+      <div class="hidden sm:block text-right border-l border-[#c89834]/50 pl-5">
+        <p class="text-[#c89834] text-xs uppercase tracking-[0.18em] font-extrabold">Instagram portrait</p>
+        <p class="display-serif text-2xl font-semibold mt-1">4 : 5</p>
+      </div>
+    </div>
+  </div>
+</header>
+
+<main class="w-full max-w-7xl mx-auto px-5 py-7 md:px-10 md:py-10">
+  <div class="workspace-grid grid grid-cols-[minmax(0,1.08fr)_minmax(330px,.92fr)] gap-7 xl:gap-12">
+    
+    <!-- LEFT PANEL: Editor -->
+    <section>
+      <div class="flex items-end justify-between gap-4 mb-5">
+        <div>
+          <p class="text-[#1e8885] text-xs uppercase tracking-[0.18em] font-extrabold mb-2">Story workshop</p>
+          <h2 class="display-serif text-[#10191d] font-bold leading-tight text-2xl">Shape the narrative</h2>
+        </div>
+        <p id="slide-position" class="text-[#0c3150] font-extrabold text-sm">Slide 1 of 6</p>
+      </div>
+
+      <section class="bg-[#fffaf0] border border-[#0c3150]/15 rounded-xl p-5 shadow-sm mb-5">
+        <div class="flex items-center justify-between gap-4 mb-3">
+          <h3 class="font-extrabold text-[#0c3150] text-[17px]">Story structure & readability</h3>
+        </div>
+        
+        <div class="grid sm:grid-cols-2 gap-4 mt-4">
+          <div>
+            <label class="block text-sm font-bold text-[#10191d] mb-2">Text-slide backdrop tint</label>
+            <select id="backdrop-treatment" class="field-control">
+              <option value="none">None</option>
+              <option value="dark">Dark tint overlay</option>
+              <option value="teal">Teal tint overlay</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-sm font-bold text-[#10191d] mb-2">Text color / palette</label>
+            <select id="text-contrast" class="field-control">
+              <option value="standard">Ink (Black)</option>
+              <option value="cream">Cream (White)</option>
+              <option value="gold">Gold</option>
+              <option value="teal">Teal</option>
+              <option value="blue">Blue</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="mt-4 flex items-center justify-between">
+          <div>
+            <label class="block text-sm font-bold text-[#10191d]">Narrative beat (Eyebrow)</label>
+          </div>
+          <label class="flex items-center gap-2 text-sm font-bold text-[#10191d] cursor-pointer bg-white px-3 py-1.5 rounded-md border border-[#0c3150]/15">
+            <input type="checkbox" id="italic-toggle" class="w-4 h-4 accent-[#1e8885]">
+            Italicize text
+          </label>
+        </div>
+        <div class="mt-2">
+          <input id="story-stage" class="field-control" type="text" placeholder="e.g. Hook, Context, Resolution">
+        </div>
+      </section>
+
+      <form id="slide-form" class="space-y-5" onsubmit="event.preventDefault();">
+        <section class="bg-[#fffaf0] border border-[#0c3150]/15 rounded-xl p-5 shadow-sm">
+          <div class="flex items-center justify-between gap-4 mb-4">
+            <h3 class="font-extrabold text-[#0c3150] text-[17px]">Words & direction</h3>
+            <div class="flex gap-3">
+              <button type="button" id="clear-text" class="text-xs font-bold text-[#b65045] hover:underline bg-[#f8dfd8] px-3 py-1.5 rounded-md">Clear all text</button>
+              <label class="flex items-center gap-2 text-sm font-bold text-[#10191d] cursor-pointer bg-white px-3 py-1.5 rounded-md border border-[#0c3150]/15">
+                <input type="checkbox" id="hide-text" class="w-4 h-4 accent-[#1e8885]">
+                Hide all text
+              </label>
+            </div>
+          </div>
+          <div class="grid sm:grid-cols-2 gap-4">
+            <div>
+              <label class="block text-sm font-bold mb-2">Slide number</label>
+              <input id="slide-number" class="field-control" type="text" maxlength="12">
+            </div>
+            <div>
+              <label class="block text-sm font-bold mb-2">Caption</label>
+              <input id="caption" class="field-control" type="text" maxlength="90">
+            </div>
+          </div>
+          <div class="mt-4">
+            <label class="block text-sm font-bold mb-2">Headline</label>
+            <input id="headline" class="field-control" type="text">
+          </div>
+          <div class="mt-4">
+            <label class="block text-sm font-bold mb-2">Body copy (Supports line breaks)</label>
+            <textarea id="body-copy" class="field-control"></textarea>
+          </div>
+          <div class="mt-4">
+            <label class="block text-sm font-bold mb-2">Call to action</label>
+            <input id="cta-copy" class="field-control" type="text">
+          </div>
+        </section>
+
+        <section class="bg-[#0c3150] rounded-xl p-5 shadow-sm text-[#fffaf0]">
+          <div class="flex items-center justify-between gap-4 mb-4">
+            <h3 class="font-extrabold text-[17px]">Photography & Layout</h3>
+            <label class="flex items-center gap-2 text-sm font-bold cursor-pointer bg-[#08243a] px-3 py-1.5 rounded-md">
+              <input type="checkbox" id="remove-border" class="w-4 h-4 accent-[#c89834]">
+              Remove border
+            </label>
+          </div>
+          
+          <div class="mt-4">
+            <label class="block text-sm font-bold mb-2 text-[#fffaf0]">Slide composition</label>
+            <select id="layout-type" class="field-control bg-[#fffaf0] text-[#10191d] font-bold">
+              <option value="photo-first">Photo-first (Full Background)</option>
+              <option value="text-first">Text-first (Split Layout)</option>
+              <option value="stacked">Stacked photos (Top & Bottom)</option>
+            </select>
+          </div>
+
+          <div class="grid sm:grid-cols-2 gap-4 mt-4">
+            <div>
+              <label class="block text-sm font-bold mb-2 text-[#fffaf0]">Upload Photo 1</label>
+              <input type="file" id="image-upload" accept="image/*" class="field-control bg-[#fffaf0] text-[#10191d] text-xs">
+            </div>
+            <div id="upload-2-container">
+              <label class="block text-sm font-bold mb-2 text-[#fffaf0] text-opacity-80">Upload Photo 2 (Stacked)</label>
+              <input type="file" id="image-upload-2" accept="image/*" class="field-control bg-[#fffaf0] text-[#10191d] text-xs">
+            </div>
+          </div>
+
+          <div class="grid sm:grid-cols-2 gap-4 mt-4">
+            <div>
+              <label class="block text-sm font-bold mb-2 text-[#fffaf0]">Image Fit</label>
+              <select id="image-fit" class="field-control bg-[#fffaf0] text-[#10191d]">
+                <option value="cover">Fill Area (Crop)</option>
+                <option value="contain">Fit Entire Image (Borders)</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-sm font-bold mb-2 text-[#fffaf0]" id="focal-label-1">Focal point</label>
+              <select id="focal-point" class="field-control bg-[#fffaf0] text-[#10191d]">
+                <option value="center">Centre</option>
+                <option value="top">Top</option>
+                <option value="bottom">Bottom</option>
+              </select>
+            </div>
+          </div>
+
+          <div id="focal-2-wrapper" class="mt-4" style="display: none;">
+            <label class="block text-sm font-bold mb-2 text-[#fffaf0]">Focal point 2 (Bottom Image)</label>
+            <select id="focal-point-2" class="field-control bg-[#fffaf0] text-[#10191d]">
+              <option value="center">Centre</option>
+              <option value="top">Top</option>
+              <option value="bottom">Bottom</option>
+            </select>
+          </div>
+        </section>
+
+        <section class="flex flex-wrap gap-2 items-center">
+          <button type="button" id="add-slide" class="action-button bg-[#1e8885] text-white hover:bg-[#176e6b]">Add slide</button>
+          <button type="button" id="duplicate-slide" class="action-button bg-[#0c3150] text-white hover:bg-[#08243a]">Duplicate</button>
+          <button type="button" id="delete-slide" class="action-button border border-[#b65045] text-[#9d382f] bg-transparent hover:bg-[#f8dfd8]">Delete</button>
+          
+          <div class="flex gap-2 ml-auto">
+            <button type="button" id="export-project" class="action-button bg-[#0c3150] text-white hover:bg-[#08243a]" title="Backup storyboard to a file">💾 Save Project</button>
+            <label class="action-button bg-[#ead9aa] text-[#0c3150] hover:bg-[#dfca90] cursor-pointer m-0" title="Restore project from a file">
+              📂 Load Project
+              <input type="file" id="import-project" accept=".json" class="hidden">
+            </label>
+            <button type="button" id="download-carousel" class="action-button bg-[#c89834] text-[#10191d] hover:bg-[#b38629]">
+              ⬇ Download Carousel
+            </button>
+          </div>
+        </section>
+      </form>
+      <p id="editor-message" class="mt-4 min-h-6 text-sm font-semibold text-[#1e8885]"></p>
+    </section>
+
+    <!-- RIGHT PANEL: Preview -->
+    <aside class="preview-area">
+      <div class="flex items-end justify-between gap-4 mb-5">
+        <div>
+          <p class="text-[#1e8885] text-xs uppercase tracking-[0.18em] font-extrabold mb-2">Live composition</p>
+          <h2 class="display-serif text-[#10191d] font-bold leading-tight text-2xl">4:5 carousel preview</h2>
+        </div>
+      </div>
+      
+      <div class="bg-[#0c3150] p-3 md:p-4 rounded-sm">
+        <div class="flex items-center justify-between gap-3 mb-3">
+          <button type="button" id="inline-previous" class="action-button bg-[#1e8885] text-white">Previous</button>
+          <span id="inline-counter" class="text-[#fffaf0] text-sm font-extrabold tracking-[0.08em]">Slide 1 of 6</span>
+          <button type="button" id="inline-next" class="action-button bg-[#c89834] text-[#10191d]">Next</button>
+        </div>
+        
+        <!-- THE CARD -->
+        <article id="carousel-card" class="carousel-card layout-text-first">
+          <div id="photo-surface" class="photo-surface fit-cover"></div>
+          <div id="photo-surface-2" class="photo-surface-2 fit-cover"></div>
+          <div id="card-content-wrapper" class="card-content">
+            <div>
+              <div class="card-meta-row">
+                <span id="card-stage" class="card-kicker">Hook</span>
+                <span id="card-number" class="card-number">01 / 06</span>
+              </div>
+              <h3 id="card-headline" class="card-headline">Start with the moment that changed the question.</h3>
+              <p id="card-body" class="card-body">A clear story does not begin with every detail.</p>
+            </div>
+            <div class="card-footer-row">
+              <p id="card-caption" class="card-caption">Editorial story system</p>
+              <span id="card-cta" class="inline-flex max-w-[45%] text-right text-xs font-extrabold uppercase tracking-[0.1em] text-[#c89834]">Swipe →</span>
+            </div>
+          </div>
+        </article>
+      </div>
+
+      <section class="mt-6">
+        <div class="flex items-center justify-between gap-4 mb-3">
+          <h3 class="font-extrabold text-[#0c3150] text-[17px]">Slide sequence</h3>
+          <p id="rail-count" class="text-xs font-bold uppercase tracking-[0.12em] text-[#617078]">6 slides</p>
+        </div>
+        <div id="thumbnail-rail" class="flex gap-3 overflow-x-auto pb-3"></div>
+      </section>
+    </aside>
+  </div>
+</main>
+</div>
+
+<script>
+const slides = [
+  { stage: "Hook", number: "01 / 06", headline: "Start with the moment that changed the question.", body: "A clear story does not begin with every detail.\nIt begins where attention shifts.", caption: "Editorial story system", cta: "Swipe for the shift →", imageUrl: "", imageUrl2: "", imageFit: "cover", focal: "center", focal2: "center", layout: "text-first", backdrop: "none", contrast: "standard", hideText: false, hideBorder: false, isItalic: false },
+  { stage: "Context", number: "02 / 06", headline: "Before the breakthrough, there was a pattern.", body: "Introduce the familiar world.", caption: "Set the scene", cta: "Keep reading →", imageUrl: "", imageUrl2: "", imageFit: "cover", focal: "center", focal2: "center", layout: "photo-first", backdrop: "dark", contrast: "cream", hideText: false, hideBorder: false, isItalic: true },
+];
+
+let activeIndex = 0;
+
+const fields = {
+  stage: document.getElementById("story-stage"),
+  number: document.getElementById("slide-number"),
+  headline: document.getElementById("headline"),
+  body: document.getElementById("body-copy"),
+  caption: document.getElementById("caption"),
+  cta: document.getElementById("cta-copy"),
+  focal: document.getElementById("focal-point"),
+  focal2: document.getElementById("focal-point-2"),
+  layout: document.getElementById("layout-type"),
+  imageFit: document.getElementById("image-fit"),
+  backdrop: document.getElementById("backdrop-treatment"),
+  contrast: document.getElementById("text-contrast"),
+  hideText: document.getElementById("hide-text"),
+  hideBorder: document.getElementById("remove-border"),
+  isItalic: document.getElementById("italic-toggle")
+};
+
+function safeText(value) { return String(value || "").trim(); }
+
+function normalizeNumbers() {
+  slides.forEach((slide, index) => {
+    if (slide.number === undefined || /^\d{1,2}\s*\/\s*\d{1,2}$/.test(slide.number)) {
+      slide.number = String(index + 1).padStart(2, "0") + " / " + String(slides.length).padStart(2, "0");
+    }
+  });
+}
+
+function setMessage(message) {
+  document.getElementById("editor-message").textContent = message;
+}
+
+function fillEditor() {
+  const slide = slides[activeIndex];
+  fields.stage.value = slide.stage || "";
+  fields.number.value = slide.number || ""; 
+  fields.headline.value = slide.headline || "";
+  fields.body.value = slide.body || "";
+  fields.caption.value = slide.caption || "";
+  fields.cta.value = slide.cta || "";
+  fields.focal.value = slide.focal || "center";
+  fields.focal2.value = slide.focal2 || "center";
+  fields.layout.value = slide.layout || "text-first";
+  fields.imageFit.value = slide.imageFit || "cover";
+  fields.backdrop.value = slide.backdrop || "none";
+  fields.contrast.value = slide.contrast || "standard";
+  fields.hideText.checked = !!slide.hideText;
+  fields.hideBorder.checked = !!slide.hideBorder;
+  fields.isItalic.checked = !!slide.isItalic;
+  
+  const focal2Wrapper = document.getElementById("focal-2-wrapper");
+  const focalLabel1 = document.getElementById("focal-label-1");
+  if (slide.layout === 'stacked') {
+    focal2Wrapper.style.display = "block";
+    focalLabel1.textContent = "Focal point 1 (Top Image)";
+  } else {
+    focal2Wrapper.style.display = "none";
+    focalLabel1.textContent = "Focal point";
+  }
+  
+  document.getElementById("image-upload").value = ""; 
+  document.getElementById("image-upload-2").value = ""; 
+  document.getElementById("slide-position").textContent = "Slide " + (activeIndex + 1) + " of " + slides.length;
+}
+
+function paintCard(slide) {
+  const card = document.getElementById("carousel-card");
+  const photo = document.getElementById("photo-surface");
+  const photo2 = document.getElementById("photo-surface-2");
+  const content = document.getElementById("card-content-wrapper");
+  
+  card.className = "carousel-card layout-" + slide.layout;
+  content.className = "card-content overlay-" + slide.backdrop + " contrast-" + slide.contrast;
+  
+  if (slide.hideBorder) card.classList.add("no-border");
+  if (slide.hideText) content.classList.add("hide-text");
+  if (slide.isItalic) {
+    card.classList.add("is-italicized");
+  } else {
+    card.classList.remove("is-italicized");
+  }
+  
+  photo.className = "photo-surface fit-" + slide.imageFit;
+  if (slide.imageUrl) {
+    photo.style.backgroundImage = `url(${slide.imageUrl})`;
+    photo.style.backgroundPosition = slide.focal === 'top' ? 'center top' : slide.focal === 'bottom' ? 'center bottom' : 'center';
+  } else {
+    photo.style.backgroundImage = "linear-gradient(180deg, rgba(5,24,36,0.10), rgba(5,24,36,0.58))";
+  }
+
+  photo2.className = "photo-surface-2 fit-" + slide.imageFit;
+  if (slide.imageUrl2) {
+    photo2.style.backgroundImage = `url(${slide.imageUrl2})`;
+    photo2.style.backgroundPosition = slide.focal2 === 'top' ? 'center top' : slide.focal2 === 'bottom' ? 'center bottom' : 'center';
+  } else {
+    photo2.style.backgroundImage = "linear-gradient(180deg, rgba(30,136,133,0.10), rgba(30,136,133,0.4))";
+  }
+
+  document.getElementById("card-stage").textContent = slide.stage;
+  document.getElementById("card-number").textContent = slide.number;
+  document.getElementById("card-headline").textContent = slide.headline;
+  document.getElementById("card-body").textContent = slide.body; 
+  document.getElementById("card-caption").textContent = slide.caption;
+  document.getElementById("card-cta").textContent = slide.cta;
+}
+
+function renderRail() {
+  const rail = document.getElementById("thumbnail-rail");
+  rail.innerHTML = "";
+  
+  slides.forEach((slide, index) => {
+    const item = document.createElement("button");
+    item.type = "button";
+    item.className = "thumb-item" + (index === activeIndex ? " is-active" : "");
+    item.dataset.index = index;
+    item.draggable = true; 
+    
+    let bgStyle = slide.imageUrl ? `background-image: url(${slide.imageUrl}); background-position: center;` : `background: #0c3150;`;
+    let thumbText = slide.headline ? slide.headline.substring(0, 20) + "..." : slide.stage || "Slide " + (index + 1);
+    
+    item.innerHTML = `<span class="thumb-photo fit-${slide.imageFit}" style="${bgStyle}"></span>
+                      <span class="thumb-copy" style="background: rgba(255,250,240,0.85); color: #10191d;">
+                        <span class="thumb-title">${thumbText}</span>
+                      </span>`;
+                      
+    item.addEventListener("click", () => {
+      activeIndex = index;
+      updateInterface();
+    });
+
+    item.addEventListener("dragstart", (e) => {
+      e.dataTransfer.effectAllowed = "move";
+      e.dataTransfer.setData("text/plain", index);
+      setTimeout(() => item.classList.add("is-dragging"), 0);
+    });
+    item.addEventListener("dragend", () => {
+      item.classList.remove("is-dragging");
+      document.querySelectorAll('.thumb-item').forEach(el => el.classList.remove('drag-over'));
+    });
+    item.addEventListener("dragover", (e) => { e.preventDefault(); e.dataTransfer.dropEffect = "move"; });
+    item.addEventListener("dragenter", (e) => { e.preventDefault(); item.classList.add('drag-over'); });
+    item.addEventListener("dragleave", () => { item.classList.remove('drag-over'); });
+    item.addEventListener("drop", (e) => {
+      e.preventDefault();
+      item.classList.remove('drag-over');
+      const fromIndex = parseInt(e.dataTransfer.getData("text/plain"), 10);
+      const toIndex = index;
+      if (fromIndex !== toIndex) {
+        const [movedSlide] = slides.splice(fromIndex, 1);
+        slides.splice(toIndex, 0, movedSlide);
+        if (activeIndex === fromIndex) { activeIndex = toIndex; } 
+        else if (activeIndex > fromIndex && activeIndex <= toIndex) { activeIndex--; } 
+        else if (activeIndex < fromIndex && activeIndex >= toIndex) { activeIndex++; }
+        updateInterface();
+        setMessage(`Moved slide to position ${toIndex + 1}`);
+      }
+    });
+
+    rail.appendChild(item);
+  });
+  document.getElementById("rail-count").textContent = slides.length + " slides";
+}
+
+function updateInterface() {
+  normalizeNumbers();
+  fillEditor();
+  paintCard(slides[activeIndex]);
+  renderRail();
+  
+  document.getElementById("inline-previous").disabled = activeIndex === 0;
+  document.getElementById("inline-next").disabled = activeIndex === slides.length - 1;
+  document.getElementById("inline-counter").textContent = "Slide " + (activeIndex + 1) + " of " + slides.length;
+}
+
+function syncFromEditor() {
+  const slide = slides[activeIndex];
+  slide.stage = fields.stage.value;
+  slide.number = fields.number.value;
+  slide.headline = safeText(fields.headline.value);
+  slide.body = fields.body.value; 
+  slide.caption = safeText(fields.caption.value);
+  slide.cta = safeText(fields.cta.value);
+  slide.focal = fields.focal.value;
+  slide.focal2 = fields.focal2.value;
+  slide.layout = fields.layout.value;
+  slide.imageFit = fields.imageFit.value;
+  slide.backdrop = fields.backdrop.value;
+  slide.contrast = fields.contrast.value;
+  slide.hideText = fields.hideText.checked;
+  slide.hideBorder = fields.hideBorder.checked;
+  slide.isItalic = fields.isItalic.checked;
+  
+  const focal2Wrapper = document.getElementById("focal-2-wrapper");
+  const focalLabel1 = document.getElementById("focal-label-1");
+  if (slide.layout === 'stacked') {
+    focal2Wrapper.style.display = "block";
+    focalLabel1.textContent = "Focal point 1 (Top Image)";
+  } else {
+    focal2Wrapper.style.display = "none";
+    focalLabel1.textContent = "Focal point";
+  }
+
+  paintCard(slide);
+  renderRail();
+}
+
+document.getElementById('clear-text').addEventListener('click', () => {
+  fields.stage.value = "";
+  fields.number.value = "";
+  fields.headline.value = "";
+  fields.body.value = "";
+  fields.caption.value = "";
+  fields.cta.value = "";
+  syncFromEditor();
+  setMessage("All text cleared on this slide.");
+});
+
+Object.values(fields).forEach(field => {
+  field.addEventListener("input", syncFromEditor);
+  field.addEventListener("change", syncFromEditor);
+});
+
+// Helper to convert uploaded local image files into Base64 strings for self-contained saving
+function fileToDataUrl(file) {
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onload = (e) => resolve(e.target.result);
+    reader.readAsDataURL(file);
+  });
+}
+
+document.getElementById('image-upload').addEventListener('change', async function(e) {
+  const file = e.target.files[0];
+  if (file) {
+    slides[activeIndex].imageUrl = await fileToDataUrl(file);
+    paintCard(slides[activeIndex]);
+    renderRail();
+  }
+});
+
+document.getElementById('image-upload-2').addEventListener('change', async function(e) {
+  const file = e.target.files[0];
+  if (file) {
+    slides[activeIndex].imageUrl2 = await fileToDataUrl(file);
+    paintCard(slides[activeIndex]);
+    renderRail();
+  }
+});
+
+// SELF-CONTAINED PROJECT BACKUP (Embeds photos into JSON)
+document.getElementById('export-project').addEventListener('click', () => {
+  const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(slides, null, 2));
+  const downloadAnchor = document.createElement('a');
+  downloadAnchor.setAttribute("href", dataStr);
+  downloadAnchor.setAttribute("download", "carousel-storyboard-backup.json");
+  document.body.appendChild(downloadAnchor);
+  downloadAnchor.click();
+  downloadAnchor.remove();
+  setMessage("Project and photos backed up into JSON successfully!");
+});
+
+// SELF-CONTAINED PROJECT RESTORE
+document.getElementById('import-project').addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(event) {
+    try {
+      const importedSlides = JSON.parse(event.target.result);
+      if (Array.isArray(importedSlides) && importedSlides.length > 0) {
+        slides.length = 0;
+        slides.push(...importedSlides);
+        activeIndex = 0;
+        updateInterface();
+        setMessage("Project and attached photos successfully restored!");
+      } else {
+        setMessage("Error: Invalid backup file structure.");
+      }
+    } catch(err) {
+      setMessage("Error reading backup file.");
+    }
+  };
+  reader.readAsText(file);
+});
+
+document.getElementById("inline-previous").addEventListener("click", () => {
+  if(activeIndex > 0) { activeIndex--; updateInterface(); }
+});
+document.getElementById("inline-next").addEventListener("click", () => {
+  if(activeIndex < slides.length - 1) { activeIndex++; updateInterface(); }
+});
+
+document.getElementById("add-slide").addEventListener("click", () => {
+  slides.push({
+    stage: "New Beat", number: "00 / 00",
+    headline: "", body: "Write the next beat.",
+    caption: "New slide", cta: "Swipe →", imageUrl: "", imageUrl2: "", imageFit: "cover", focal: "center", focal2: "center", layout: "text-first", backdrop: "none", contrast: "standard", hideText: false, hideBorder: false, isItalic: false
+  });
+  activeIndex = slides.length - 1;
+  updateInterface();
+});
+
+document.getElementById("duplicate-slide").addEventListener("click", () => {
+  const duplicate = { ...slides[activeIndex], headline: slides[activeIndex].headline ? slides[activeIndex].headline + " (copy)" : "" };
+  slides.splice(activeIndex + 1, 0, duplicate);
+  activeIndex++;
+  updateInterface();
+});
+
+document.getElementById("delete-slide").addEventListener("click", () => {
+  if (slides.length === 1) return setMessage("Keep at least one slide.");
+  slides.splice(activeIndex, 1);
+  activeIndex = Math.max(0, activeIndex - 1);
+  updateInterface();
+});
+
+// PURE HTML5 CANVAS UNCOMPRESSED LOSSLESS EXPORT ENGINE
+function loadImage(src) {
+  return new Promise((resolve, reject) => {
+    if (!src) return resolve(null);
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => resolve(img);
+    img.onerror = reject;
+    img.src = src;
+  });
+}
+
+document.getElementById("download-carousel").addEventListener("click", async () => {
+  setMessage("Rendering native uncompressed image exports...");
+  const originalIndex = activeIndex;
+  
+  const targetW = 2160;
+  const targetH = 2700;
+  
+  const canvas = document.createElement('canvas');
+  canvas.width = targetW;
+  canvas.height = targetH;
+  const ctx = canvas.getContext('2d');
+
+  for (let i = 0; i < slides.length; i++) {
+    const slide = slides[i];
+    ctx.clearRect(0, 0, targetW, targetH);
+    
+    ctx.fillStyle = "#fffaf0";
+    ctx.fillRect(0, 0, targetW, targetH);
+
+    const img1 = await loadImage(slide.imageUrl);
+    const img2 = await loadImage(slide.imageUrl2);
+
+    if (slide.layout === 'stacked') {
+      if (img1) {
+        drawNativeImage(ctx, img1, 0, 0, targetW, targetH * 0.5, slide.imageFit, slide.focal);
+      } else {
+        ctx.fillStyle = "rgba(5,24,36,0.15)";
+        ctx.fillRect(0, 0, targetW, targetH * 0.5);
+      }
+      if (img2) {
+        drawNativeImage(ctx, img2, 0, targetH * 0.5, targetW, targetH * 0.5, slide.imageFit, slide.focal2);
+      } else {
+        ctx.fillStyle = "rgba(30,136,133,0.15)";
+        ctx.fillRect(0, targetH * 0.5, targetW, targetH * 0.5);
+      }
+    } else if (slide.layout === 'text-first') {
+      if (img1) {
+        ctx.save();
+        ctx.filter = "saturate(0.88)";
+        drawNativeImage(ctx, img1, 0, targetH * 0.6, targetW, targetH * 0.4, slide.imageFit, slide.focal);
+        ctx.restore();
+      }
+    } else {
+      if (img1) {
+        drawNativeImage(ctx, img1, 0, 0, targetW, targetH, slide.imageFit, slide.focal);
+      }
+    }
+
+    if (slide.backdrop === 'dark') {
+      const grad = ctx.createLinearGradient(0, 0, 0, targetH);
+      grad.addColorStop(0, 'rgba(7, 25, 38, 0.3)');
+      grad.addColorStop(1, 'rgba(7, 25, 38, 0.85)');
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, targetW, targetH);
+    } else if (slide.backdrop === 'teal') {
+      const grad = ctx.createLinearGradient(0, 0, 0, targetH);
+      grad.addColorStop(0, 'rgba(30, 136, 133, 0.3)');
+      grad.addColorStop(1, 'rgba(30, 136, 133, 0.85)');
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, targetW, targetH);
+    }
+
+    if (!slide.hideBorder) {
+      ctx.strokeStyle = "rgba(200, 152, 52, 0.55)";
+      ctx.lineWidth = 3;
+      ctx.strokeRect(60, 60, targetW - 120, targetH - 120);
+    }
+
+    if (!slide.hideText) {
+      ctx.save();
+      
+      let textColor = "#10191d";
+      let textShadow = "rgba(255,255,255,0.4)";
+      if (slide.contrast === 'cream') { textColor = "#fffaf0"; textShadow = "rgba(0,0,0,0.7)"; }
+      else if (slide.contrast === 'gold') { textColor = "#c89834"; textShadow = "rgba(0,0,0,0.6)"; }
+      else if (slide.contrast === 'teal') { textColor = "#1e8885"; textShadow = "rgba(255,255,255,0.6)"; }
+      else if (slide.contrast === 'blue') { textColor = "#0c3150"; textShadow = "rgba(255,255,255,0.6)"; }
+
+      const fontStyle = slide.isItalic ? "italic " : "";
+      const padding = 130;
+      const contentW = targetW - (padding * 2);
+
+      ctx.font = "800 34px 'Libre Franklin', sans-serif";
+      ctx.fillStyle = "#c89834";
+      ctx.fillText((slide.stage || "").toUpperCase(), padding, padding + 40);
+
+      ctx.fillStyle = textColor;
+      ctx.font = "800 34px 'Libre Franklin', sans-serif";
+      ctx.textAlign = "right";
+      ctx.fillText(slide.number || "", targetW - padding, padding + 40);
+      ctx.textAlign = "left";
+
+      if (slide.headline) {
+        ctx.font = `${fontStyle}bold 110px 'Playfair Display', serif`;
+        ctx.fillStyle = textColor;
+        ctx.shadowColor = textShadow;
+        ctx.shadowBlur = 12;
+        wrapText(ctx, slide.headline, padding, padding + 220, contentW, 115);
+      }
+
+      if (slide.body) {
+        ctx.font = `${fontStyle}400 48px 'Playfair Display', serif`;
+        ctx.fillStyle = textColor;
+        ctx.shadowColor = textShadow;
+        ctx.shadowBlur = 10;
+        wrapText(ctx, slide.body, padding, padding + 540, contentW, 72);
+      }
+
+      const footerY = targetH - padding - 20;
+      ctx.font = "800 28px 'Libre Franklin', sans-serif";
+      ctx.fillStyle = textColor;
+      ctx.shadowBlur = 8;
+      ctx.fillText((slide.caption || "").toUpperCase(), padding, footerY);
+
+      ctx.fillStyle = "#c89834";
+      ctx.textAlign = "right";
+      ctx.fillText((slide.cta || "").toUpperCase(), targetW - padding, footerY);
+      
+      ctx.restore();
+    }
+
+    const link = document.createElement('a');
+    link.download = `carousel-slide-${String(i+1).padStart(2, '0')}.png`;
+    link.href = canvas.toDataURL('image/png', 1.0);
+    link.click();
+    await new Promise(r => setTimeout(r, 250));
+  }
+  
+  activeIndex = originalIndex;
+  updateInterface();
+  setMessage("Uncompressed full-quality slides downloaded successfully!");
+});
+
+function drawNativeImage(ctx, img, x, y, w, h, fit, focal) {
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(x, y, w, h);
+  ctx.clip();
+
+  const imgRatio = img.width / img.height;
+  const boxRatio = w / h;
+  let renderW, renderH, renderX, renderY;
+
+  if (fit === 'contain') {
+    if (imgRatio > boxRatio) {
+      renderW = w;
+      renderH = w / imgRatio;
+      renderX = x;
+      renderY = y + (h - renderH) / 2;
+    } else {
+      renderH = h;
+      renderW = h * imgRatio;
+      renderX = x + (w - renderW) / 2;
+      renderY = y;
+    }
+    ctx.fillStyle = "#fffaf0";
+    ctx.fillRect(x, y, w, h);
+  } else {
+    if (imgRatio > boxRatio) {
+      renderH = h;
+      renderW = h * imgRatio;
+      renderX = x + (w - renderW) / 2;
+      renderY = y;
+    } else {
+      renderW = w;
+      renderH = w / imgRatio;
+      renderX = x;
+      if (focal === 'top') renderY = y;
+      else if (focal === 'bottom') renderY = y + h - renderH;
+      else renderY = y + (h - renderH) / 2;
+    }
+  }
+  ctx.drawImage(img, renderX, renderY, renderW, renderH);
+  ctx.restore();
+}
+
+function wrapText(ctx, text, x, y, maxWidth, lineHeight) {
+  const paragraphs = text.split('\n');
+  let currentY = y;
+  for (let p = 0; p < paragraphs.length; p++) {
+    const words = paragraphs[p].split(' ');
+    let line = '';
+    for (let n = 0; n < words.length; n++) {
+      const testLine = line + words[n] + ' ';
+      const metrics = ctx.measureText(testLine);
+      const testWidth = metrics.width;
+      if (testWidth > maxWidth && n > 0) {
+        ctx.fillText(line, x, currentY);
+        line = words[n] + ' ';
+        currentY += lineHeight;
+      } else {
+        line = testLine;
+      }
+    }
+    ctx.fillText(line, x, currentY);
+    currentY += lineHeight;
+  }
+}
+
+window.addEventListener("DOMContentLoaded", () => {
+  if(typeof lucide !== 'undefined') lucide.createIcons();
+  updateInterface();
+});
+</script>
+</body>
+</html>
