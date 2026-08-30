@@ -441,6 +441,40 @@ textarea.field-control { min-height: 84px; resize: vertical; }
             </button>
           </div>
         </section>
+
+        <section class="bg-[#fffaf0] border border-[#0c3150]/15 rounded-xl p-5 shadow-sm">
+          <h3 class="font-extrabold text-[#0c3150] text-[17px] mb-2">Instagram</h3>
+          <p class="text-sm text-[#617078] leading-relaxed mb-4">Instagram does not let a webpage drop files straight onto a personal feed. On a phone, <strong>Share to Instagram</strong> hands the rendered slides to the Instagram app. Direct posting needs a Professional account and Meta’s publishing API (settings below). Local download stays available.</p>
+          <label class="block text-sm font-bold mb-2">Post caption</label>
+          <textarea id="ig-caption" class="field-control" placeholder="Caption, line breaks, and hashtags for the Instagram post"></textarea>
+          <div class="flex flex-wrap gap-2 mt-4">
+            <button type="button" id="share-instagram" class="action-button bg-[#1e8885] text-white hover:bg-[#176e6b]">Share to Instagram</button>
+            <button type="button" id="publish-instagram" class="action-button bg-[#0c3150] text-white hover:bg-[#08243a]">Publish via Meta API</button>
+          </div>
+          <details class="mt-4">
+            <summary class="cursor-pointer text-sm font-extrabold text-[#0c3150]">Meta API settings (optional)</summary>
+            <p class="text-xs text-[#617078] leading-relaxed mt-3 mb-3">Required for <em>Publish via Meta API</em>: Instagram Professional account linked to a Facebook Page, a Meta app with content publish permission, a long-lived user token, and a public image host. Meta fetches each slide from a public HTTPS URL — it cannot use files that only exist on your computer. Tokens are stored only in this browser.</p>
+            <div class="grid gap-3">
+              <div>
+                <label class="block text-sm font-bold mb-2">Instagram user ID</label>
+                <input id="ig-user-id" class="field-control" type="text" autocomplete="off" placeholder="IG professional account ID">
+              </div>
+              <div>
+                <label class="block text-sm font-bold mb-2">Access token</label>
+                <input id="ig-access-token" class="field-control" type="password" autocomplete="off" placeholder="Page or user token with publish permission">
+              </div>
+              <div>
+                <label class="block text-sm font-bold mb-2">Public image upload URL</label>
+                <input id="ig-upload-endpoint" class="field-control" type="url" placeholder="https://your-host.example/upload">
+                <p class="text-xs text-[#617078] mt-1">POST multipart field <code>file</code>. Response JSON must include <code>{"url":"https://..."}</code>.</p>
+              </div>
+              <div>
+                <label class="block text-sm font-bold mb-2">Graph API version</label>
+                <input id="ig-graph-version" class="field-control" type="text" value="v21.0">
+              </div>
+            </div>
+          </details>
+        </section>
       </form>
       <p id="editor-message" class="mt-4 min-h-6 text-sm font-semibold text-[#1e8885]"></p>
     </section>
@@ -818,7 +852,10 @@ document.getElementById("delete-slide").addEventListener("click", () => {
   updateInterface();
 });
 
-// PURE HTML5 CANVAS UNCOMPRESSED LOSSLESS EXPORT ENGINE
+const EXPORT_W = 2160;
+const EXPORT_H = 2700;
+const IG_SETTINGS_KEY = "carousel-ig-settings";
+
 function loadImage(src) {
   return new Promise((resolve, reject) => {
     if (!src) return resolve(null);
@@ -830,137 +867,333 @@ function loadImage(src) {
   });
 }
 
-document.getElementById("download-carousel").addEventListener("click", async () => {
-  setMessage("Rendering native uncompressed image exports...");
-  const originalIndex = activeIndex;
-  
-  const targetW = 2160;
-  const targetH = 2700;
-  
-  const canvas = document.createElement('canvas');
-  canvas.width = targetW;
-  canvas.height = targetH;
-  const ctx = canvas.getContext('2d');
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
-  for (let i = 0; i < slides.length; i++) {
-    const slide = slides[i];
-    ctx.clearRect(0, 0, targetW, targetH);
-    
-    ctx.fillStyle = "#fffaf0";
-    ctx.fillRect(0, 0, targetW, targetH);
+function canvasToBlob(canvas, mimeType, quality) {
+  return new Promise((resolve, reject) => {
+    canvas.toBlob((blob) => {
+      if (blob) resolve(blob);
+      else reject(new Error("Could not encode the slide image."));
+    }, mimeType, quality);
+  });
+}
 
-    const img1 = await loadImage(slide.imageUrl);
-    const img2 = await loadImage(slide.imageUrl2);
+function igSettingsFields() {
+  return {
+    userId: document.getElementById("ig-user-id"),
+    token: document.getElementById("ig-access-token"),
+    upload: document.getElementById("ig-upload-endpoint"),
+    version: document.getElementById("ig-graph-version")
+  };
+}
 
-    if (slide.layout === 'stacked') {
-      if (img1) {
-        drawNativeImage(ctx, img1, 0, 0, targetW, targetH * 0.5, slide.imageFit, slide.focal);
-      } else {
-        ctx.fillStyle = "rgba(5,24,36,0.15)";
-        ctx.fillRect(0, 0, targetW, targetH * 0.5);
-      }
-      if (img2) {
-        drawNativeImage(ctx, img2, 0, targetH * 0.5, targetW, targetH * 0.5, slide.imageFit, slide.focal2);
-      } else {
-        ctx.fillStyle = "rgba(30,136,133,0.15)";
-        ctx.fillRect(0, targetH * 0.5, targetW, targetH * 0.5);
-      }
-    } else if (slide.layout === 'text-first') {
-      if (img1) {
-        ctx.save();
-        ctx.filter = "saturate(0.88)";
-        drawNativeImage(ctx, img1, 0, targetH * 0.6, targetW, targetH * 0.4, slide.imageFit, slide.focal);
-        ctx.restore();
-      }
+function loadIgSettings() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(IG_SETTINGS_KEY) || "{}");
+    const fields = igSettingsFields();
+    fields.userId.value = saved.userId || "";
+    fields.token.value = saved.token || "";
+    fields.upload.value = saved.upload || "";
+    fields.version.value = saved.version || "v21.0";
+  } catch (err) {
+    /* ignore corrupt local storage */
+  }
+}
+
+function saveIgSettings() {
+  const fields = igSettingsFields();
+  localStorage.setItem(IG_SETTINGS_KEY, JSON.stringify({
+    userId: fields.userId.value.trim(),
+    token: fields.token.value.trim(),
+    upload: fields.upload.value.trim(),
+    version: fields.version.value.trim() || "v21.0"
+  }));
+}
+
+async function drawSlideOnCanvas(ctx, slide, targetW, targetH) {
+  ctx.clearRect(0, 0, targetW, targetH);
+  ctx.fillStyle = "#fffaf0";
+  ctx.fillRect(0, 0, targetW, targetH);
+
+  const img1 = await loadImage(slide.imageUrl);
+  const img2 = await loadImage(slide.imageUrl2);
+
+  if (slide.layout === "stacked") {
+    if (img1) {
+      drawNativeImage(ctx, img1, 0, 0, targetW, targetH * 0.5, slide.imageFit, slide.focal);
     } else {
-      if (img1) {
-        drawNativeImage(ctx, img1, 0, 0, targetW, targetH, slide.imageFit, slide.focal);
-      }
+      ctx.fillStyle = "rgba(5,24,36,0.15)";
+      ctx.fillRect(0, 0, targetW, targetH * 0.5);
     }
-
-    if (slide.backdrop === 'dark') {
-      const grad = ctx.createLinearGradient(0, 0, 0, targetH);
-      grad.addColorStop(0, 'rgba(7, 25, 38, 0.3)');
-      grad.addColorStop(1, 'rgba(7, 25, 38, 0.85)');
-      ctx.fillStyle = grad;
-      ctx.fillRect(0, 0, targetW, targetH);
-    } else if (slide.backdrop === 'teal') {
-      const grad = ctx.createLinearGradient(0, 0, 0, targetH);
-      grad.addColorStop(0, 'rgba(30, 136, 133, 0.3)');
-      grad.addColorStop(1, 'rgba(30, 136, 133, 0.85)');
-      ctx.fillStyle = grad;
-      ctx.fillRect(0, 0, targetW, targetH);
+    if (img2) {
+      drawNativeImage(ctx, img2, 0, targetH * 0.5, targetW, targetH * 0.5, slide.imageFit, slide.focal2);
+    } else {
+      ctx.fillStyle = "rgba(30,136,133,0.15)";
+      ctx.fillRect(0, targetH * 0.5, targetW, targetH * 0.5);
     }
-
-    if (!slide.hideBorder) {
-      ctx.strokeStyle = "rgba(200, 152, 52, 0.55)";
-      ctx.lineWidth = 3;
-      ctx.strokeRect(60, 60, targetW - 120, targetH - 120);
-    }
-
-    if (!slide.hideText) {
+  } else if (slide.layout === "text-first") {
+    if (img1) {
       ctx.save();
-      
-      let textColor = "#10191d";
-      let textShadow = "rgba(255,255,255,0.4)";
-      if (slide.contrast === 'cream') { textColor = "#fffaf0"; textShadow = "rgba(0,0,0,0.7)"; }
-      else if (slide.contrast === 'gold') { textColor = "#c89834"; textShadow = "rgba(0,0,0,0.6)"; }
-      else if (slide.contrast === 'teal') { textColor = "#1e8885"; textShadow = "rgba(255,255,255,0.6)"; }
-      else if (slide.contrast === 'blue') { textColor = "#0c3150"; textShadow = "rgba(255,255,255,0.6)"; }
-
-      const fontStyle = slide.isItalic ? "italic " : "";
-      const padding = 130;
-      const contentW = targetW - (padding * 2);
-
-      ctx.font = "800 34px 'Libre Franklin', sans-serif";
-      ctx.fillStyle = "#c89834";
-      ctx.fillText((slide.stage || "").toUpperCase(), padding, padding + 40);
-
-      ctx.fillStyle = textColor;
-      ctx.font = "800 34px 'Libre Franklin', sans-serif";
-      ctx.textAlign = "right";
-      ctx.fillText(slide.number || "", targetW - padding, padding + 40);
-      ctx.textAlign = "left";
-
-      if (slide.headline) {
-        ctx.font = `${fontStyle}bold 110px 'Playfair Display', serif`;
-        ctx.fillStyle = textColor;
-        ctx.shadowColor = textShadow;
-        ctx.shadowBlur = 12;
-        wrapText(ctx, slide.headline, padding, padding + 220, contentW, 115);
-      }
-
-      if (slide.body) {
-        ctx.font = `${fontStyle}400 48px 'Playfair Display', serif`;
-        ctx.fillStyle = textColor;
-        ctx.shadowColor = textShadow;
-        ctx.shadowBlur = 10;
-        wrapText(ctx, slide.body, padding, padding + 540, contentW, 72);
-      }
-
-      const footerY = targetH - padding - 20;
-      ctx.font = "800 28px 'Libre Franklin', sans-serif";
-      ctx.fillStyle = textColor;
-      ctx.shadowBlur = 8;
-      ctx.fillText((slide.caption || "").toUpperCase(), padding, footerY);
-
-      ctx.fillStyle = "#c89834";
-      ctx.textAlign = "right";
-      ctx.fillText((slide.cta || "").toUpperCase(), targetW - padding, footerY);
-      
+      ctx.filter = "saturate(0.88)";
+      drawNativeImage(ctx, img1, 0, targetH * 0.6, targetW, targetH * 0.4, slide.imageFit, slide.focal);
       ctx.restore();
     }
-
-    const link = document.createElement('a');
-    link.download = `carousel-slide-${String(i+1).padStart(2, '0')}.png`;
-    link.href = canvas.toDataURL('image/png', 1.0);
-    link.click();
-    await new Promise(r => setTimeout(r, 250));
+  } else if (img1) {
+    drawNativeImage(ctx, img1, 0, 0, targetW, targetH, slide.imageFit, slide.focal);
   }
-  
-  activeIndex = originalIndex;
-  updateInterface();
-  setMessage("Uncompressed full-quality slides downloaded successfully!");
+
+  if (slide.backdrop === "dark") {
+    const grad = ctx.createLinearGradient(0, 0, 0, targetH);
+    grad.addColorStop(0, "rgba(7, 25, 38, 0.3)");
+    grad.addColorStop(1, "rgba(7, 25, 38, 0.85)");
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, targetW, targetH);
+  } else if (slide.backdrop === "teal") {
+    const grad = ctx.createLinearGradient(0, 0, 0, targetH);
+    grad.addColorStop(0, "rgba(30, 136, 133, 0.3)");
+    grad.addColorStop(1, "rgba(30, 136, 133, 0.85)");
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, targetW, targetH);
+  }
+
+  if (!slide.hideBorder) {
+    ctx.strokeStyle = "rgba(200, 152, 52, 0.55)";
+    ctx.lineWidth = 3;
+    ctx.strokeRect(60, 60, targetW - 120, targetH - 120);
+  }
+
+  if (slide.hideText) return;
+
+  ctx.save();
+  let textColor = "#10191d";
+  let textShadow = "rgba(255,255,255,0.4)";
+  if (slide.contrast === "cream") { textColor = "#fffaf0"; textShadow = "rgba(0,0,0,0.7)"; }
+  else if (slide.contrast === "gold") { textColor = "#c89834"; textShadow = "rgba(0,0,0,0.6)"; }
+  else if (slide.contrast === "teal") { textColor = "#1e8885"; textShadow = "rgba(255,255,255,0.6)"; }
+  else if (slide.contrast === "blue") { textColor = "#0c3150"; textShadow = "rgba(255,255,255,0.6)"; }
+
+  const fontStyle = slide.isItalic ? "italic " : "";
+  const padding = 130;
+  const contentW = targetW - (padding * 2);
+
+  ctx.font = "800 34px 'Libre Franklin', sans-serif";
+  ctx.fillStyle = "#c89834";
+  ctx.fillText((slide.stage || "").toUpperCase(), padding, padding + 40);
+
+  ctx.fillStyle = textColor;
+  ctx.font = "800 34px 'Libre Franklin', sans-serif";
+  ctx.textAlign = "right";
+  ctx.fillText(slide.number || "", targetW - padding, padding + 40);
+  ctx.textAlign = "left";
+
+  if (slide.headline) {
+    ctx.font = `${fontStyle}bold 110px 'Playfair Display', serif`;
+    ctx.fillStyle = textColor;
+    ctx.shadowColor = textShadow;
+    ctx.shadowBlur = 12;
+    wrapText(ctx, slide.headline, padding, padding + 220, contentW, 115);
+  }
+
+  if (slide.body) {
+    ctx.font = `${fontStyle}400 48px 'Playfair Display', serif`;
+    ctx.fillStyle = textColor;
+    ctx.shadowColor = textShadow;
+    ctx.shadowBlur = 10;
+    wrapText(ctx, slide.body, padding, padding + 540, contentW, 72);
+  }
+
+  const footerY = targetH - padding - 20;
+  ctx.font = "800 28px 'Libre Franklin', sans-serif";
+  ctx.fillStyle = textColor;
+  ctx.shadowBlur = 8;
+  ctx.fillText((slide.caption || "").toUpperCase(), padding, footerY);
+
+  ctx.fillStyle = "#c89834";
+  ctx.textAlign = "right";
+  ctx.fillText((slide.cta || "").toUpperCase(), targetW - padding, footerY);
+  ctx.restore();
+}
+
+async function renderSlidesToFiles({ mimeType, quality, extension }) {
+  const canvas = document.createElement("canvas");
+  canvas.width = EXPORT_W;
+  canvas.height = EXPORT_H;
+  const ctx = canvas.getContext("2d");
+  const files = [];
+
+  for (let i = 0; i < slides.length; i++) {
+    await drawSlideOnCanvas(ctx, slides[i], EXPORT_W, EXPORT_H);
+    const blob = await canvasToBlob(canvas, mimeType, quality);
+    const name = `carousel-slide-${String(i + 1).padStart(2, "0")}.${extension}`;
+    files.push(new File([blob], name, { type: mimeType }));
+  }
+
+  return files;
+}
+
+async function downloadFiles(files) {
+  for (const file of files) {
+    const link = document.createElement("a");
+    link.download = file.name;
+    link.href = URL.createObjectURL(file);
+    link.click();
+    URL.revokeObjectURL(link.href);
+    await sleep(250);
+  }
+}
+
+document.getElementById("download-carousel").addEventListener("click", async () => {
+  try {
+    setMessage("Rendering native uncompressed image exports...");
+    const files = await renderSlidesToFiles({ mimeType: "image/png", quality: 1, extension: "png" });
+    await downloadFiles(files);
+    setMessage("Uncompressed full-quality slides downloaded successfully!");
+  } catch (err) {
+    setMessage("Download failed: " + err.message);
+  }
+});
+
+document.getElementById("share-instagram").addEventListener("click", async () => {
+  try {
+    setMessage("Preparing slides for Instagram...");
+    const files = await renderSlidesToFiles({ mimeType: "image/jpeg", quality: 0.92, extension: "jpg" });
+    const caption = document.getElementById("ig-caption").value;
+    const payload = { files, title: "Instagram carousel", text: caption };
+
+    if (navigator.canShare && navigator.canShare({ files })) {
+      await navigator.share(payload);
+      setMessage("Share sheet opened. Choose Instagram to finish the post. Local download is still available.");
+      return;
+    }
+    if (navigator.share) {
+      await navigator.share({ title: payload.title, text: caption || "Carousel slides are ready — download them, then add to Instagram." });
+      setMessage("This browser can share text but not image files. Download the carousel, then attach the PNGs in Instagram.");
+      return;
+    }
+    setMessage("This desktop browser cannot hand files to Instagram. Use Download Carousel, or open the page on your phone.");
+  } catch (err) {
+    if (err && err.name === "AbortError") {
+      setMessage("Share cancelled.");
+      return;
+    }
+    setMessage("Share failed: " + err.message);
+  }
+});
+
+async function graphRequest(version, path, { method = "GET", params } = {}) {
+  const url = new URL(`https://graph.facebook.com/${version}/${path}`);
+  const options = { method };
+  if (method === "GET") {
+    Object.entries(params || {}).forEach(([key, value]) => url.searchParams.set(key, value));
+  } else {
+    options.body = new URLSearchParams(params);
+  }
+  const response = await fetch(url.toString(), options);
+  const json = await response.json();
+  if (json.error) throw new Error(json.error.message);
+  return json;
+}
+
+async function waitForContainer(version, containerId, token) {
+  for (let i = 0; i < 24; i++) {
+    const status = await graphRequest(version, containerId, {
+      params: { fields: "status_code", access_token: token }
+    });
+    if (status.status_code === "FINISHED") return;
+    if (status.status_code === "ERROR") throw new Error("Instagram failed to process a slide.");
+    await sleep(1500);
+  }
+  throw new Error("Timed out waiting for Instagram to process media.");
+}
+
+async function uploadSlideForInstagram(endpoint, file) {
+  const body = new FormData();
+  body.append("file", file);
+  const response = await fetch(endpoint, { method: "POST", body });
+  const json = await response.json().catch(() => ({}));
+  if (!response.ok || !json.url) {
+    throw new Error("Image host must respond with JSON { url: \"https://...\" } so Instagram can fetch the slide.");
+  }
+  return json.url;
+}
+
+document.getElementById("publish-instagram").addEventListener("click", async () => {
+  saveIgSettings();
+  const { userId, token, upload, version } = igSettingsFields();
+  const igUserId = userId.value.trim();
+  const accessToken = token.value.trim();
+  const uploadEndpoint = upload.value.trim();
+  const graphVersion = (version.value.trim() || "v21.0").replace(/^\/+|\/+$/g, "");
+  const caption = document.getElementById("ig-caption").value;
+
+  if (!igUserId || !accessToken || !uploadEndpoint) {
+    setMessage("Publish needs Instagram user ID, access token, and a public image upload URL. See Meta API settings, or use Share / Download instead.");
+    return;
+  }
+  if (slides.length > 10) {
+    setMessage("Instagram carousels allow at most 10 slides. Remove some slides or download locally.");
+    return;
+  }
+
+  try {
+    setMessage("Rendering JPEGs for Instagram...");
+    const files = await renderSlidesToFiles({ mimeType: "image/jpeg", quality: 0.92, extension: "jpg" });
+
+    setMessage("Uploading slides to your public image host...");
+    const imageUrls = [];
+    for (const file of files) {
+      imageUrls.push(await uploadSlideForInstagram(uploadEndpoint, file));
+    }
+
+    let creationId;
+    if (imageUrls.length === 1) {
+      setMessage("Creating Instagram photo...");
+      const container = await graphRequest(graphVersion, `${igUserId}/media`, {
+        method: "POST",
+        params: { image_url: imageUrls[0], caption, access_token: accessToken }
+      });
+      await waitForContainer(graphVersion, container.id, accessToken);
+      creationId = container.id;
+    } else {
+      setMessage("Creating Instagram carousel items...");
+      const childIds = [];
+      for (const imageUrl of imageUrls) {
+        const child = await graphRequest(graphVersion, `${igUserId}/media`, {
+          method: "POST",
+          params: { image_url: imageUrl, is_carousel_item: "true", access_token: accessToken }
+        });
+        await waitForContainer(graphVersion, child.id, accessToken);
+        childIds.push(child.id);
+      }
+      setMessage("Assembling carousel...");
+      const parent = await graphRequest(graphVersion, `${igUserId}/media`, {
+        method: "POST",
+        params: {
+          media_type: "CAROUSEL",
+          children: childIds.join(","),
+          caption,
+          access_token: accessToken
+        }
+      });
+      await waitForContainer(graphVersion, parent.id, accessToken);
+      creationId = parent.id;
+    }
+
+    setMessage("Publishing to Instagram...");
+    await graphRequest(graphVersion, `${igUserId}/media_publish`, {
+      method: "POST",
+      params: { creation_id: creationId, access_token: accessToken }
+    });
+    setMessage("Published to Instagram. Local download is still available if you want a copy.");
+  } catch (err) {
+    setMessage("Publish failed: " + err.message);
+  }
+});
+
+["ig-user-id", "ig-access-token", "ig-upload-endpoint", "ig-graph-version"].forEach((id) => {
+  document.getElementById(id).addEventListener("change", saveIgSettings);
 });
 
 function drawNativeImage(ctx, img, x, y, w, h, fit, focal) {
@@ -1031,6 +1264,7 @@ function wrapText(ctx, text, x, y, maxWidth, lineHeight) {
 
 window.addEventListener("DOMContentLoaded", () => {
   if(typeof lucide !== 'undefined') lucide.createIcons();
+  loadIgSettings();
   updateInterface();
 });
 </script>

@@ -6,8 +6,10 @@ Edit copy and layout on the left, preview the live 4:5 card on the right, reorde
 
 ## Run it
 
-1. Open `carousel11.html` in a modern browser (Chrome, Edge, or Firefox).
-2. Photos stay in memory as data URLs. Saving the project writes them into the JSON file so the backup is self-contained.
+- **Live site (GitHub Pages):** [https://raynew.github.io/editorial-carousel-storyboard/](https://raynew.github.io/editorial-carousel-storyboard/)
+- **Local:** open `carousel11.html` in a modern browser (Chrome, Edge, or Firefox). No build step.
+
+Photos stay in memory as data URLs. Saving the project writes them into the JSON file so the backup is self-contained.
 
 CDN assets (Tailwind, Lucide, Google Fonts) need a network connection the first time the page loads.
 
@@ -101,8 +103,59 @@ These are not named functions; they are listeners on buttons and inputs.
 | **Duplicate** | Inserts a copy after the current slide; appends ` (copy)` to the headline if there is one |
 | **Delete** | Removes the current slide; refuses to delete the last remaining slide |
 | **Download Carousel** | Renders each slide to a 2160×2700 PNG (`carousel-slide-01.png`, …) via canvas and triggers a download per slide |
+| **Share to Instagram** | Renders JPEG slides and opens the system share sheet (phones) so you can pick Instagram. Does not skip Instagram’s composer. |
+| **Publish via Meta API** | Uploads JPEGs to your public image host, then creates and publishes a photo or carousel through Instagram’s Graph API. Professional accounts only. |
+
+### `drawSlideOnCanvas(ctx, slide, targetW, targetH)`
+
+Paints one slide onto an export canvas: photos, layout, overlay, border, and type. Shared by download, share, and publish.
+
+### `renderSlidesToFiles({ mimeType, quality, extension })`
+
+Renders the whole deck to `File` objects (PNG for local download, JPEG for Instagram).
+
+### `canvasToBlob(canvas, mimeType, quality)`
+
+Promise wrapper around `canvas.toBlob`.
+
+### `downloadFiles(files)`
+
+Triggers a sequential local download for each file.
+
+### `graphRequest(version, path, { method, params })`
+
+Calls `https://graph.facebook.com/{version}/{path}`. Throws if Meta returns `error`.
+
+### `waitForContainer(version, containerId, token)`
+
+Polls a media container until `FINISHED` (or errors / times out). Required before publish.
+
+### `uploadSlideForInstagram(endpoint, file)`
+
+POSTs a slide as multipart `file` to your host. Expects `{ "url": "https://..." }` because Instagram must fetch the image itself.
+
+### `loadIgSettings()` / `saveIgSettings()`
+
+Read and write Instagram user ID, token, upload URL, and Graph version in `localStorage` (`carousel-ig-settings`). Tokens never leave this browser unless you click publish.
 
 Export recreates layout (photo-first, text-first, stacked), overlay, border, type colour, italics, wrapping, and captions so the PNG matches the on-screen composition as closely as canvas text allows.
+
+## Instagram: what is and is not possible
+
+A static page **cannot** silently post to a normal personal Instagram account. Instagram has no “upload these local files as a feed post” API for consumer logins, and unofficial bots violate Instagram’s terms.
+
+Two supported paths:
+
+1. **Share to Instagram (phones)** — uses the Web Share API with the rendered JPEGs. You still confirm the post in the Instagram app. Desktop browsers usually cannot attach files this way; use **Download Carousel** instead.
+2. **Publish via Meta API (Professional accounts)** — official Content Publishing:
+   - Instagram Business or Creator account linked to a Facebook Page
+   - Meta app with `instagram_business_content_publish` (or the equivalent content-publish permission)
+   - Long-lived access token
+   - A **public HTTPS** image host. Meta’s servers download each slide; `file://` and data URLs will not work.
+
+Your upload endpoint should accept `POST` multipart field `file` and return JSON `{"url":"https://cdn.example/slide.jpg"}`. Then this app creates child containers (`is_carousel_item=true`), a parent `CAROUSEL` (2–10 slides) or a single image, and calls `media_publish`.
+
+Keep **Download Carousel** for lossless local PNGs regardless of Instagram.
 
 ## Layouts
 
