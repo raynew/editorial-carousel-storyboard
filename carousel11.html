@@ -214,7 +214,6 @@ textarea.field-control { min-height: 84px; resize: vertical; }
   text-transform: uppercase;
   font-weight: 800;
   letter-spacing: 0.17em;
-  color: var(--gold);
 }
 
 .card-number {
@@ -510,7 +509,7 @@ textarea.field-control { min-height: 84px; resize: vertical; }
             </div>
             <div class="card-footer-row">
               <p id="card-caption" class="card-caption">Editorial story system</p>
-              <span id="card-cta" class="inline-flex max-w-[45%] text-right text-xs font-extrabold uppercase tracking-[0.1em] text-[#c89834]">Swipe →</span>
+              <span id="card-cta" class="inline-flex max-w-[45%] text-right text-xs font-extrabold uppercase tracking-[0.1em]">Swipe →</span>
             </div>
           </div>
         </article>
@@ -979,7 +978,7 @@ async function drawSlideOnCanvas(ctx, slide, targetW, targetH) {
   const contentW = targetW - (padding * 2);
 
   ctx.font = "800 34px 'Libre Franklin', sans-serif";
-  ctx.fillStyle = "#c89834";
+  ctx.fillStyle = textColor;
   ctx.fillText((slide.stage || "").toUpperCase(), padding, padding + 40);
 
   ctx.fillStyle = textColor;
@@ -1010,7 +1009,7 @@ async function drawSlideOnCanvas(ctx, slide, targetW, targetH) {
   ctx.shadowBlur = 8;
   ctx.fillText((slide.caption || "").toUpperCase(), padding, footerY);
 
-  ctx.fillStyle = "#c89834";
+  ctx.fillStyle = textColor;
   ctx.textAlign = "right";
   ctx.fillText((slide.cta || "").toUpperCase(), targetW - padding, footerY);
   ctx.restore();
