@@ -1,0 +1,9 @@
+        <section class="bg-[#fffaf0] border border-[#0c3150]/15 rounded-xl p-5 shadow-sm">
+          <h3 class="font-extrabold text-[#0c3150] text-[17px] mb-2">Instagram</h3>
+          <p class="text-sm text-[#617078] leading-relaxed mb-4">Instagram does not let a webpage drop files straight onto a personal feed. On a phone, <strong>Share to Instagram</strong> hands the rendered slides to the Instagram app. Direct posting needs a Professional account and Meta's publishing API (settings below). Local download stays available.</p>
+          <label class="block text-sm font-bold mb-2">Post caption</label>
+          <textarea id="ig-caption" class="field-control" placeholder="Caption, line breaks, and hashtags for the Instagram post"></textarea>
+          <div class="flex flex-wrap gap-2 mt-4">
+            <button type="button" id="share-instagram" class="action-button bg-[#1e8885] text-white hover:bg-[#176e6b]">Share to Instagram</button>
+          </div>
+        </section>

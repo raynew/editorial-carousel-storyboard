@@ -449,7 +449,31 @@ textarea.field-control { min-height: 84px; resize: vertical; }
           <textarea id="ig-caption" class="field-control" placeholder="Caption, line breaks, and hashtags for the Instagram post"></textarea>
           <div class="flex flex-wrap gap-2 mt-4">
             <button type="button" id="share-instagram" class="action-button bg-[#1e8885] text-white hover:bg-[#176e6b]">Share to Instagram</button>
+            <button type="button" id="publish-instagram" class="action-button bg-[#0c3150] text-white hover:bg-[#08243a]">Publish via Meta API</button>
           </div>
+          <details class="mt-4">
+            <summary class="cursor-pointer text-sm font-extrabold text-[#0c3150]">Meta API settings (optional)</summary>
+            <p class="text-xs text-[#617078] leading-relaxed mt-3 mb-3">Required for <em>Publish via Meta API</em>: Instagram Professional account linked to a Facebook Page, a Meta app with content publish permission, a long-lived user token, and a public image host. Meta fetches each slide from a public HTTPS URL — it cannot use files that only exist on your computer. Tokens are stored only in this browser.</p>
+            <div class="grid gap-3">
+              <div>
+                <label class="block text-sm font-bold mb-2">Instagram user ID</label>
+                <input id="ig-user-id" class="field-control" type="text" autocomplete="off" placeholder="IG professional account ID">
+              </div>
+              <div>
+                <label class="block text-sm font-bold mb-2">Access token</label>
+                <input id="ig-access-token" class="field-control" type="password" autocomplete="off" placeholder="Page or user token with publish permission">
+              </div>
+              <div>
+                <label class="block text-sm font-bold mb-2">Public image upload URL</label>
+                <input id="ig-upload-endpoint" class="field-control" type="url" placeholder="https://your-host.example/upload">
+                <p class="text-xs text-[#617078] mt-1">POST multipart field <code>file</code>. Response JSON must include <code>{"url":"https://..."}</code>.</p>
+              </div>
+              <div>
+                <label class="block text-sm font-bold mb-2">Graph API version</label>
+                <input id="ig-graph-version" class="field-control" type="text" value="v21.0">
+              </div>
+            </div>
+          </details>
         </section>
       </form>
       <p id="editor-message" class="mt-4 min-h-6 text-sm font-semibold text-[#1e8885]"></p>
@@ -1001,6 +1025,33 @@ document.getElementById("download-carousel").addEventListener("click", async () 
   }
 });
 
+document.getElementById("share-instagram").addEventListener("click", async () => {
+  try {
+    setMessage("Preparing slides for Instagram...");
+    const files = await renderSlidesToFiles({ mimeType: "image/jpeg", quality: 0.92, extension: "jpg" });
+    const caption = document.getElementById("ig-caption").value;
+    const payload = { files, title: "Instagram carousel", text: caption };
+
+    if (navigator.canShare && navigator.canShare({ files })) {
+      await navigator.share(payload);
+      setMessage("Share sheet opened. Choose Instagram to finish the post. Local download is still available.");
+      return;
+    }
+    if (navigator.share) {
+      await navigator.share({ title: payload.title, text: caption || "Carousel slides are ready — download them, then add to Instagram." });
+      setMessage("This browser can share text but not image files. Download the carousel, then attach the PNGs in Instagram.");
+      return;
+    }
+    setMessage("This desktop browser cannot hand files to Instagram. Use Download Carousel, or open the page on your phone.");
+  } catch (err) {
+    if (err && err.name === "AbortError") {
+      setMessage("Share cancelled.");
+      return;
+    }
+    setMessage("Share failed: " + err.message);
+  }
+});
+
 async function graphRequest(version, path, { method = "GET", params } = {}) {
   const url = new URL(`https://graph.facebook.com/${version}/${path}`);
   const options = { method };
@@ -1027,7 +1078,93 @@ async function waitForContainer(version, containerId, token) {
   throw new Error("Timed out waiting for Instagram to process media.");
 }
 
-// Removed Instagram publish functionality
+async function uploadSlideForInstagram(endpoint, file) {
+  const body = new FormData();
+  body.append("file", file);
+  const response = await fetch(endpoint, { method: "POST", body });
+  const json = await response.json().catch(() => ({}));
+  if (!response.ok || !json.url) {
+    throw new Error("Image host must respond with JSON { url: \"https://...\" } so Instagram can fetch the slide.");
+  }
+  return json.url;
+}
+
+document.getElementById("publish-instagram").addEventListener("click", async () => {
+  saveIgSettings();
+  const { userId, token, upload, version } = igSettingsFields();
+  const igUserId = userId.value.trim();
+  const accessToken = token.value.trim();
+  const uploadEndpoint = upload.value.trim();
+  const graphVersion = (version.value.trim() || "v21.0").replace(/^\/+|\/+$/g, "");
+  const caption = document.getElementById("ig-caption").value;
+
+  if (!igUserId || !accessToken || !uploadEndpoint) {
+    setMessage("Publish needs Instagram user ID, access token, and a public image upload URL. See Meta API settings, or use Share / Download instead.");
+    return;
+  }
+  if (slides.length > 10) {
+    setMessage("Instagram carousels allow at most 10 slides. Remove some slides or download locally.");
+    return;
+  }
+
+  try {
+    setMessage("Rendering JPEGs for Instagram...");
+    const files = await renderSlidesToFiles({ mimeType: "image/jpeg", quality: 0.92, extension: "jpg" });
+
+    setMessage("Uploading slides to your public image host...");
+    const imageUrls = [];
+    for (const file of files) {
+      imageUrls.push(await uploadSlideForInstagram(uploadEndpoint, file));
+    }
+
+    let creationId;
+    if (imageUrls.length === 1) {
+      setMessage("Creating Instagram photo...");
+      const container = await graphRequest(graphVersion, `${igUserId}/media`, {
+        method: "POST",
+        params: { image_url: imageUrls[0], caption, access_token: accessToken }
+      });
+      await waitForContainer(graphVersion, container.id, accessToken);
+      creationId = container.id;
+    } else {
+      setMessage("Creating Instagram carousel items...");
+      const childIds = [];
+      for (const imageUrl of imageUrls) {
+        const child = await graphRequest(graphVersion, `${igUserId}/media`, {
+          method: "POST",
+          params: { image_url: imageUrl, is_carousel_item: "true", access_token: accessToken }
+        });
+        await waitForContainer(graphVersion, child.id, accessToken);
+        childIds.push(child.id);
+      }
+      setMessage("Assembling carousel...");
+      const parent = await graphRequest(graphVersion, `${igUserId}/media`, {
+        method: "POST",
+        params: {
+          media_type: "CAROUSEL",
+          children: childIds.join(","),
+          caption,
+          access_token: accessToken
+        }
+      });
+      await waitForContainer(graphVersion, parent.id, accessToken);
+      creationId = parent.id;
+    }
+
+    setMessage("Publishing to Instagram...");
+    await graphRequest(graphVersion, `${igUserId}/media_publish`, {
+      method: "POST",
+      params: { creation_id: creationId, access_token: accessToken }
+    });
+    setMessage("Published to Instagram. Local download is still available if you want a copy.");
+  } catch (err) {
+    setMessage("Publish failed: " + err.message);
+  }
+});
+
+["ig-user-id", "ig-access-token", "ig-upload-endpoint", "ig-graph-version"].forEach((id) => {
+  document.getElementById(id).addEventListener("change", saveIgSettings);
+});
 
 function drawNativeImage(ctx, img, x, y, w, h, fit, focal) {
   ctx.save();
