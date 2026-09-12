@@ -436,7 +436,7 @@ textarea.field-control { min-height: 84px; resize: vertical; }
               📂 Load Project
               <input type="file" id="import-project" accept=".json" class="hidden">
             </label>
-            <button type="button" id="download-carousel" class="action-button bg-[#c89834] text-[#10191d] hover:bg-[#b38629]">
+            <button type="button" id="download-carousel" class="action-button bg-[#c89834] text-[#10191d] hover:bg-[#b38629]" title="Downloads all slides as PNG files. To replace existing files, manually delete old versions first.">
               ⬇ Download Carousel
             </button>
           </div>
@@ -459,6 +459,7 @@ textarea.field-control { min-height: 84px; resize: vertical; }
         <div class="flex items-center justify-between gap-3 mb-3">
           <button type="button" id="inline-previous" class="action-button bg-[#1e8885] text-white">Previous</button>
           <span id="inline-counter" class="text-[#fffaf0] text-sm font-extrabold tracking-[0.08em]">Slide 1 of 6</span>
+          <button type="button" id="download-selected-slide" class="action-button bg-[#4a148c] text-white">Download Selected Slide</button>
           <button type="button" id="inline-next" class="action-button bg-[#c89834] text-[#10191d]">Next</button>
         </div>
         
@@ -795,6 +796,18 @@ document.getElementById("inline-next").addEventListener("click", () => {
   if(activeIndex < slides.length - 1) { activeIndex++; updateInterface(); }
 });
 
+document.getElementById("download-selected-slide").addEventListener("click", async () => {
+  try {
+    setMessage("Rendering selected slide...");
+    const files = await renderSlidesToFiles({ mimeType: "image/png", quality: 1, extension: "png" }, [activeIndex]);
+    await downloadFiles(files);
+    setMessage("Selected slide downloaded successfully!");
+  } catch (err) {
+    console.error(err);
+    setMessage("Failed to download selected slide.");
+  }
+});
+
 document.getElementById("add-slide").addEventListener("click", () => {
   slides.push({
     stage: "New Beat", number: "00 / 00",
@@ -953,18 +966,23 @@ function canvasToBlob(canvas, mimeType, quality) {
   ctx.restore();
 }
 
-async function renderSlidesToFiles({ mimeType, quality, extension }) {
+async function renderSlidesToFiles({ mimeType, quality, extension }, slideIndices = null) {
   const canvas = document.createElement("canvas");
   canvas.width = EXPORT_W;
   canvas.height = EXPORT_H;
   const ctx = canvas.getContext("2d");
   const files = [];
 
-  for (let i = 0; i < slides.length; i++) {
-    await drawSlideOnCanvas(ctx, slides[i], EXPORT_W, EXPORT_H);
-    const blob = await canvasToBlob(canvas, mimeType, quality);
-    const name = `carousel-slide-${String(i + 1).padStart(2, "0")}.${extension}`;
-    files.push(new File([blob], name, { type: mimeType }));
+  const indicesToProcess = slideIndices || Array.from({length: slides.length}, (_, i) => i);
+  
+  for (let i = 0; i < indicesToProcess.length; i++) {
+    const index = indicesToProcess[i];
+    if (index >= 0 && index < slides.length) {
+      await drawSlideOnCanvas(ctx, slides[index], EXPORT_W, EXPORT_H);
+      const blob = await canvasToBlob(canvas, mimeType, quality);
+      const name = `carousel-slide-${String(index + 1).padStart(2, "0")}.${extension}`;
+      files.push(new File([blob], name, { type: mimeType }));
+    }
   }
 
   return files;
@@ -986,7 +1004,7 @@ document.getElementById("download-carousel").addEventListener("click", async () 
     setMessage("Rendering native uncompressed image exports...");
     const files = await renderSlidesToFiles({ mimeType: "image/png", quality: 1, extension: "png" });
     await downloadFiles(files);
-    setMessage("Uncompressed full-quality slides downloaded successfully!");
+    setMessage("Uncompressed full-quality slides downloaded successfully! Note: To replace existing files, please manually delete the old versions and use the downloaded files.");
   } catch (err) {
     setMessage("Download failed: " + err.message);
   }
@@ -1064,6 +1082,45 @@ window.addEventListener("DOMContentLoaded", () => {
   if(typeof lucide !== 'undefined') lucide.createIcons();
   updateInterface();
 });
-</script>
+
+/* Documentation for using this tool */
+const documentation = document.createElement('div');
+documentation.innerHTML = `
+  <style>
+    #tool-docs {
+      background: #f0f0f0;
+      border-top: 1px solid #ccc;
+      padding: 15px;
+      margin-top: 20px;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+    #tool-docs h3 {
+      margin-top: 0;
+      color: #333;
+    }
+    #tool-docs ul {
+      margin: 10px 0;
+      padding-left: 20px;
+    }
+    #tool-docs li {
+      margin-bottom: 5px;
+    }
+    #tool-docs code {
+      background: #e8e8e8;
+      padding: 2px 4px;
+      border-radius: 3px;
+    }
+  </style>
+  <div id="tool-docs">
+    <h3>How to Use This Carousel Tool</h3>
+    <ul>
+      <li><strong>Navigation:</strong> Use the arrow buttons or keyboard arrows to move between slides</li>
+      <li><strong>Download Individual Slide:</strong> Click "Download Selected Slide" to download only the currently displayed slide</li>
+      <li><strong>Download All Slides:</strong> Click "Download Carousel" to download all slides as PNG files</li>
+      <li><strong>Replacing Existing Files:</strong> When downloading the full carousel, you'll need to manually delete old versions first before using new ones</li>
+      <li><strong>File Naming:</strong> Slides are saved as "carousel-slide-01.png", "carousel-slide-02.png", etc.</li>
+    </ul>
+  </div>
 </body>
 </html>
