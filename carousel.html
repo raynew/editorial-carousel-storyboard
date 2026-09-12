@@ -968,10 +968,11 @@ async function drawSlideOnCanvas(ctx, slide, targetW, targetH) {
   ctx.save();
   let textColor = "#10191d";
   let textShadow = "rgba(255,255,255,0.4)";
-  if (slide.contrast === "cream") { textColor = "#fffaf0"; textShadow = "rgba(0,0,0,0.7)"; }
-  else if (slide.contrast === "gold") { textColor = "#c89834"; textShadow = "rgba(0,0,0,0.6)"; }
-  else if (slide.contrast === "teal") { textColor = "#1e8885"; textShadow = "rgba(255,255,255,0.6)"; }
-  else if (slide.contrast === "blue") { textColor = "#0c3150"; textShadow = "rgba(255,255,255,0.6)"; }
+  let textStrokeColor = "rgba(255,255,255,0.8)"; // Default stroke color for contrast
+  if (slide.contrast === "cream") { textColor = "#fffaf0"; textShadow = "rgba(0,0,0,0.7)"; textStrokeColor = "rgba(0,0,0,0.8)"; }
+  else if (slide.contrast === "gold") { textColor = "#c89834"; textShadow = "rgba(0,0,0,0.6)"; textStrokeColor = "rgba(0,0,0,0.7)"; }
+  else if (slide.contrast === "teal") { textColor = "#1e8885"; textShadow = "rgba(255,255,255,0.6)"; textStrokeColor = "rgba(255,255,255,0.7)"; }
+  else if (slide.contrast === "blue") { textColor = "#0c3150"; textShadow = "rgba(255,255,255,0.6)"; textStrokeColor = "rgba(255,255,255,0.7)"; }
 
   const fontStyle = slide.isItalic ? "italic " : "";
   const padding = 130;
@@ -979,17 +980,23 @@ async function drawSlideOnCanvas(ctx, slide, targetW, targetH) {
 
   ctx.font = "800 34px 'Libre Franklin', sans-serif";
   ctx.fillStyle = textColor;
+  ctx.strokeStyle = textStrokeColor;
+  ctx.lineWidth = 2;
+  ctx.strokeText((slide.stage || "").toUpperCase(), padding, padding + 40);
   ctx.fillText((slide.stage || "").toUpperCase(), padding, padding + 40);
 
   ctx.fillStyle = textColor;
   ctx.font = "800 34px 'Libre Franklin', sans-serif";
   ctx.textAlign = "right";
+  ctx.strokeText(slide.number || "", targetW - padding, padding + 40);
   ctx.fillText(slide.number || "", targetW - padding, padding + 40);
   ctx.textAlign = "left";
 
   if (slide.headline) {
     ctx.font = `${fontStyle}bold 110px 'Playfair Display', serif`;
     ctx.fillStyle = textColor;
+    ctx.strokeStyle = textStrokeColor;
+    ctx.lineWidth = 3;
     ctx.shadowColor = textShadow;
     ctx.shadowBlur = 12;
     wrapText(ctx, slide.headline, padding, padding + 220, contentW, 115);
@@ -998,6 +1005,8 @@ async function drawSlideOnCanvas(ctx, slide, targetW, targetH) {
   if (slide.body) {
     ctx.font = `${fontStyle}400 48px 'Playfair Display', serif`;
     ctx.fillStyle = textColor;
+    ctx.strokeStyle = textStrokeColor;
+    ctx.lineWidth = 2;
     ctx.shadowColor = textShadow;
     ctx.shadowBlur = 10;
     wrapText(ctx, slide.body, padding, padding + 540, contentW, 72);
@@ -1006,7 +1015,10 @@ async function drawSlideOnCanvas(ctx, slide, targetW, targetH) {
   const footerY = targetH - padding - 20;
   ctx.font = "800 28px 'Libre Franklin', sans-serif";
   ctx.fillStyle = textColor;
+  ctx.strokeStyle = textStrokeColor;
+  ctx.lineWidth = 1;
   ctx.shadowBlur = 8;
+  ctx.strokeText((slide.caption || "").toUpperCase(), padding, footerY);
   ctx.fillText((slide.caption || "").toUpperCase(), padding, footerY);
 
   ctx.fillStyle = textColor;
