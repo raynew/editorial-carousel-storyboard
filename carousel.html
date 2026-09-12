@@ -442,15 +442,6 @@ textarea.field-control { min-height: 84px; resize: vertical; }
           </div>
         </section>
 
-        <section class="bg-[#fffaf0] border border-[#0c3150]/15 rounded-xl p-5 shadow-sm">
-          <h3 class="font-extrabold text-[#0c3150] text-[17px] mb-2">Instagram</h3>
-          <p class="text-sm text-[#617078] leading-relaxed mb-4">Instagram does not let a webpage drop files straight onto a personal feed. On a phone, <strong>Share to Instagram</strong> hands the rendered slides to the Instagram app. Direct posting needs a Professional account and Meta’s publishing API (settings below). Local download stays available.</p>
-          <label class="block text-sm font-bold mb-2">Post caption</label>
-          <textarea id="ig-caption" class="field-control" placeholder="Caption, line breaks, and hashtags for the Instagram post"></textarea>
-          <div class="flex flex-wrap gap-2 mt-4">
-            <button type="button" id="share-instagram" class="action-button bg-[#1e8885] text-white hover:bg-[#176e6b]">Share to Instagram</button>
-          </div>
-        </section>
       </form>
       <p id="editor-message" class="mt-4 min-h-6 text-sm font-semibold text-[#1e8885]"></p>
     </section>
@@ -1001,32 +992,6 @@ document.getElementById("download-carousel").addEventListener("click", async () 
   }
 });
 
-async function graphRequest(version, path, { method = "GET", params } = {}) {
-  const url = new URL(`https://graph.facebook.com/${version}/${path}`);
-  const options = { method };
-  if (method === "GET") {
-    Object.entries(params || {}).forEach(([key, value]) => url.searchParams.set(key, value));
-  } else {
-    options.body = new URLSearchParams(params);
-  }
-  const response = await fetch(url.toString(), options);
-  const json = await response.json();
-  if (json.error) throw new Error(json.error.message);
-  return json;
-}
-
-async function waitForContainer(version, containerId, token) {
-  for (let i = 0; i < 24; i++) {
-    const status = await graphRequest(version, containerId, {
-      params: { fields: "status_code", access_token: token }
-    });
-    if (status.status_code === "FINISHED") return;
-    if (status.status_code === "ERROR") throw new Error("Instagram failed to process a slide.");
-    await sleep(1500);
-  }
-  throw new Error("Timed out waiting for Instagram to process media.");
-}
-
 // Removed Instagram publish functionality
 
 function drawNativeImage(ctx, img, x, y, w, h, fit, focal) {
@@ -1097,7 +1062,6 @@ function wrapText(ctx, text, x, y, maxWidth, lineHeight) {
 
 window.addEventListener("DOMContentLoaded", () => {
   if(typeof lucide !== 'undefined') lucide.createIcons();
-  loadIgSettings();
   updateInterface();
 });
 </script>
