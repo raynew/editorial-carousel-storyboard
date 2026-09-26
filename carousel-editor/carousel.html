@@ -811,8 +811,8 @@ document.getElementById("download-selected-slide").addEventListener("click", asy
 document.getElementById("add-slide").addEventListener("click", () => {
   slides.push({
     stage: "New Beat", number: "00 / 00",
-    headline: "", body: "Write the next beat.",
-    caption: "New slide", cta: "Swipe →", imageUrl: "", imageUrl2: "", imageFit: "cover", focal: "center", focal2: "center", layout: "text-first", backdrop: "none", contrast: "standard", hideText: false, hideBorder: false, isItalic: false
+    headline: "", body: "",
+    caption: "", cta: "", imageUrl: "", imageUrl2: "", imageFit: "cover", focal: "center", focal2: "center", layout: "photo-first", backdrop: "none", contrast: "standard", hideText: true, hideBorder: false, isItalic: false
   });
   activeIndex = slides.length - 1;
   updateInterface();

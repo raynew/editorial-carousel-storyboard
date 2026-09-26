@@ -1,13 +1,13 @@
 # Editorial Carousel Storyboard
 
-A single-file web app for designing Instagram portrait carousels (4:5). Open `carousel11.html` in a browser — no build step or server required.
+A single-file web app for designing Instagram portrait carousels (4:5). Open `carousel.html` in a browser — no build step or server required.
 
 Edit copy and layout on the left, preview the live 4:5 card on the right, reorder slides in the thumbnail rail, then export PNG slides or a JSON project backup.
 
 ## Run it
 
 - **Live site (GitHub Pages):** [https://raynew.github.io/editorial-carousel-storyboard/](https://raynew.github.io/editorial-carousel-storyboard/)
-- **Local:** open `carousel11.html` in a modern browser (Chrome, Edge, or Firefox). No build step.
+- **Local:** open `carousel.html` in a modern browser (Chrome, Edge, or Firefox). No build step.
 
 Photos stay in memory as data URLs. Saving the project writes them into the JSON file so the backup is self-contained.
 
