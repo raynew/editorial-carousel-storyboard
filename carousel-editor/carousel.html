@@ -99,6 +99,9 @@ textarea.field-control { min-height: 84px; resize: vertical; }
   inset: 0;
   background-position: center;
   background-repeat: no-repeat;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
 }
 
 .photo-surface-2 {
@@ -107,7 +110,10 @@ textarea.field-control { min-height: 84px; resize: vertical; }
   height: 50%;
   background-position: center;
   background-repeat: no-repeat;
-  display: none; 
+  display: none;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
 }
 
 .fit-cover { background-size: cover; }
@@ -134,6 +140,7 @@ textarea.field-control { min-height: 84px; resize: vertical; }
   flex-direction: column;
   justify-content: space-between;
   padding: clamp(1.3rem, 4.4vw, 2.4rem);
+  pointer-events: none;
 }
 
 .card-meta-row {
@@ -387,13 +394,15 @@ textarea.field-control { min-height: 84px; resize: vertical; }
           </div>
 
           <div class="grid sm:grid-cols-2 gap-4 mt-4">
-            <div>
+            <div id="upload-1-container" style="grid-column: 1 / -1;">
               <label class="block text-sm font-bold mb-2 text-[#fffaf0]">Upload Photo 1</label>
               <input type="file" id="image-upload" accept="image/*" class="field-control bg-[#fffaf0] text-[#10191d] text-xs">
+              <p id="image-name" class="mt-1 text-xs text-[#d9e3de] truncate" aria-live="polite"></p>
             </div>
-            <div id="upload-2-container">
+            <div id="upload-2-container" style="display: none;">
               <label class="block text-sm font-bold mb-2 text-[#fffaf0] text-opacity-80">Upload Photo 2 (Stacked)</label>
               <input type="file" id="image-upload-2" accept="image/*" class="field-control bg-[#fffaf0] text-[#10191d] text-xs">
+              <p id="image-name-2" class="mt-1 text-xs text-[#d9e3de] truncate" aria-live="polite"></p>
             </div>
           </div>
 
@@ -411,6 +420,7 @@ textarea.field-control { min-height: 84px; resize: vertical; }
                 <option value="center">Centre</option>
                 <option value="top">Top</option>
                 <option value="bottom">Bottom</option>
+                <option value="custom">Custom</option>
               </select>
             </div>
           </div>
@@ -421,6 +431,7 @@ textarea.field-control { min-height: 84px; resize: vertical; }
               <option value="center">Centre</option>
               <option value="top">Top</option>
               <option value="bottom">Bottom</option>
+              <option value="custom">Custom</option>
             </select>
           </div>
         </section>
@@ -498,8 +509,8 @@ textarea.field-control { min-height: 84px; resize: vertical; }
 
 <script>
 const slides = [
-  { stage: "Hook", number: "01 / 06", headline: "Start with the moment that changed the question.", body: "A clear story does not begin with every detail.\nIt begins where attention shifts.", caption: "Editorial story system", cta: "Swipe for the shift →", imageUrl: "", imageUrl2: "", imageFit: "cover", focal: "center", focal2: "center", layout: "text-first", backdrop: "none", contrast: "standard", hideText: false, hideBorder: false, isItalic: false },
-  { stage: "Context", number: "02 / 06", headline: "Before the breakthrough, there was a pattern.", body: "Introduce the familiar world.", caption: "Set the scene", cta: "Keep reading →", imageUrl: "", imageUrl2: "", imageFit: "cover", focal: "center", focal2: "center", layout: "photo-first", backdrop: "dark", contrast: "cream", hideText: false, hideBorder: false, isItalic: true },
+  { stage: "", number: "01 / 02", headline: "", body: "", caption: "", cta: "", imageUrl: "", imageUrl2: "", imageFit: "cover", focal: "center", focal2: "center", layout: "photo-first", backdrop: "none", contrast: "standard", hideText: true, hideBorder: false, isItalic: false },
+  { stage: "", number: "02 / 02", headline: "", body: "", caption: "", cta: "", imageUrl: "", imageUrl2: "", imageFit: "cover", focal: "center", focal2: "center", layout: "photo-first", backdrop: "none", contrast: "standard", hideText: true, hideBorder: false, isItalic: false },
 ];
 
 let activeIndex = 0;
@@ -524,6 +535,41 @@ const fields = {
 
 function safeText(value) { return String(value || "").trim(); }
 
+function clampPosition(value) {
+  return Math.max(0, Math.min(100, Number(value)));
+}
+
+function getPhotoPosition(slide, second = false) {
+  const stored = second ? slide.photoPosition2 : slide.photoPosition;
+  const focal = second ? slide.focal2 : slide.focal;
+  const legacyY = focal === "top" ? 0 : focal === "bottom" ? 100 : 50;
+  const x = Number(stored?.x);
+  const y = Number(stored?.y);
+  return {
+    x: Number.isFinite(x) ? clampPosition(x) : 50,
+    y: Number.isFinite(y) ? clampPosition(y) : legacyY
+  };
+}
+
+function getFocalPreset(position) {
+  if (position.x !== 50) return "custom";
+  if (position.y === 0) return "top";
+  if (position.y === 100) return "bottom";
+  return position.y === 50 ? "center" : "custom";
+}
+
+function setPhotoPosition(slide, position, second = false) {
+  const normalized = { x: clampPosition(position.x), y: clampPosition(position.y) };
+  if (second) {
+    slide.photoPosition2 = normalized;
+    slide.focal2 = getFocalPreset(normalized);
+  } else {
+    slide.photoPosition = normalized;
+    slide.focal = getFocalPreset(normalized);
+  }
+  return normalized;
+}
+
 function normalizeNumbers() {
   slides.forEach((slide, index) => {
     if (slide.number === undefined || /^\d{1,2}\s*\/\s*\d{1,2}$/.test(slide.number)) {
@@ -536,6 +582,16 @@ function setMessage(message) {
   document.getElementById("editor-message").textContent = message;
 }
 
+function updatePhotoControls(slide) {
+  const isStacked = slide.layout === "stacked";
+  document.getElementById("upload-1-container").style.gridColumn = isStacked ? "" : "1 / -1";
+  document.getElementById("upload-2-container").style.display = isStacked ? "" : "none";
+  document.getElementById("focal-2-wrapper").style.display = isStacked ? "block" : "none";
+  document.getElementById("focal-label-1").textContent = isStacked ? "Focal point 1 (Top Image)" : "Focal point";
+  document.getElementById("image-name").textContent = slide.imageName || "";
+  document.getElementById("image-name-2").textContent = slide.imageName2 || "";
+}
+
 function fillEditor() {
   const slide = slides[activeIndex];
   fields.stage.value = slide.stage || "";
@@ -544,8 +600,8 @@ function fillEditor() {
   fields.body.value = slide.body || "";
   fields.caption.value = slide.caption || "";
   fields.cta.value = slide.cta || "";
-  fields.focal.value = slide.focal || "center";
-  fields.focal2.value = slide.focal2 || "center";
+  fields.focal.value = getFocalPreset(getPhotoPosition(slide));
+  fields.focal2.value = getFocalPreset(getPhotoPosition(slide, true));
   fields.layout.value = slide.layout || "text-first";
   fields.imageFit.value = slide.imageFit || "cover";
   fields.backdrop.value = slide.backdrop || "none";
@@ -554,15 +610,7 @@ function fillEditor() {
   fields.hideBorder.checked = !!slide.hideBorder;
   fields.isItalic.checked = !!slide.isItalic;
   
-  const focal2Wrapper = document.getElementById("focal-2-wrapper");
-  const focalLabel1 = document.getElementById("focal-label-1");
-  if (slide.layout === 'stacked') {
-    focal2Wrapper.style.display = "block";
-    focalLabel1.textContent = "Focal point 1 (Top Image)";
-  } else {
-    focal2Wrapper.style.display = "none";
-    focalLabel1.textContent = "Focal point";
-  }
+  updatePhotoControls(slide);
   
   document.getElementById("image-upload").value = ""; 
   document.getElementById("image-upload-2").value = ""; 
@@ -587,17 +635,21 @@ function paintCard(slide) {
   }
   
   photo.className = "photo-surface fit-" + slide.imageFit;
+  const photoPosition = getPhotoPosition(slide);
+  photo.style.cursor = slide.imageUrl ? "grab" : "default";
   if (slide.imageUrl) {
     photo.style.backgroundImage = `url(${slide.imageUrl})`;
-    photo.style.backgroundPosition = slide.focal === 'top' ? 'center top' : slide.focal === 'bottom' ? 'center bottom' : 'center';
+    photo.style.backgroundPosition = `${photoPosition.x}% ${photoPosition.y}%`;
   } else {
     photo.style.backgroundImage = "linear-gradient(180deg, rgba(5,24,36,0.10), rgba(5,24,36,0.58))";
   }
 
   photo2.className = "photo-surface-2 fit-" + slide.imageFit;
+  const photoPosition2 = getPhotoPosition(slide, true);
+  photo2.style.cursor = slide.imageUrl2 ? "grab" : "default";
   if (slide.imageUrl2) {
     photo2.style.backgroundImage = `url(${slide.imageUrl2})`;
-    photo2.style.backgroundPosition = slide.focal2 === 'top' ? 'center top' : slide.focal2 === 'bottom' ? 'center bottom' : 'center';
+    photo2.style.backgroundPosition = `${photoPosition2.x}% ${photoPosition2.y}%`;
   } else {
     photo2.style.backgroundImage = "linear-gradient(180deg, rgba(30,136,133,0.10), rgba(30,136,133,0.4))";
   }
@@ -610,6 +662,42 @@ function paintCard(slide) {
   document.getElementById("card-cta").textContent = slide.cta;
 }
 
+function enablePhotoDragging(element, second = false) {
+  let drag = null;
+  element.addEventListener("pointerdown", (event) => {
+    const slide = slides[activeIndex];
+    if (event.button !== 0 || !(second ? slide.imageUrl2 : slide.imageUrl)) return;
+    const bounds = element.getBoundingClientRect();
+    const position = getPhotoPosition(slide, second);
+    drag = { pointerId: event.pointerId, x: event.clientX, y: event.clientY, width: bounds.width, height: bounds.height, position };
+    element.setPointerCapture(event.pointerId);
+    element.style.cursor = "grabbing";
+    event.preventDefault();
+  });
+  element.addEventListener("pointermove", (event) => {
+    if (!drag || event.pointerId !== drag.pointerId) return;
+    const slide = slides[activeIndex];
+    const position = setPhotoPosition(slide, {
+      x: drag.position.x - (event.clientX - drag.x) / drag.width * 100,
+      y: drag.position.y - (event.clientY - drag.y) / drag.height * 100
+    }, second);
+    if (second) fields.focal2.value = getFocalPreset(position);
+    else fields.focal.value = getFocalPreset(position);
+    paintCard(slide);
+  });
+  const finishDrag = (event) => {
+    if (!drag || event.pointerId !== drag.pointerId) return;
+    drag = null;
+    element.style.cursor = (second ? slides[activeIndex].imageUrl2 : slides[activeIndex].imageUrl) ? "grab" : "default";
+    renderRail();
+  };
+  element.addEventListener("pointerup", finishDrag);
+  element.addEventListener("pointercancel", finishDrag);
+}
+
+enablePhotoDragging(document.getElementById("photo-surface"));
+enablePhotoDragging(document.getElementById("photo-surface-2"), true);
+
 function renderRail() {
   const rail = document.getElementById("thumbnail-rail");
   rail.innerHTML = "";
@@ -621,7 +709,8 @@ function renderRail() {
     item.dataset.index = index;
     item.draggable = true; 
     
-    let bgStyle = slide.imageUrl ? `background-image: url(${slide.imageUrl}); background-position: center;` : `background: #0c3150;`;
+    const thumbPosition = getPhotoPosition(slide);
+    let bgStyle = slide.imageUrl ? `background-image: url(${slide.imageUrl}); background-position: ${thumbPosition.x}% ${thumbPosition.y}%;` : `background: #0c3150;`;
     let thumbText = slide.headline ? slide.headline.substring(0, 20) + "..." : slide.stage || "Slide " + (index + 1);
     
     item.innerHTML = `<span class="thumb-photo fit-${slide.imageFit}" style="${bgStyle}"></span>
@@ -686,8 +775,12 @@ function syncFromEditor() {
   slide.body = fields.body.value; 
   slide.caption = safeText(fields.caption.value);
   slide.cta = safeText(fields.cta.value);
-  slide.focal = fields.focal.value;
-  slide.focal2 = fields.focal2.value;
+  if (fields.focal.value !== "custom") {
+    setPhotoPosition(slide, { x: 50, y: fields.focal.value === "top" ? 0 : fields.focal.value === "bottom" ? 100 : 50 });
+  }
+  if (fields.focal2.value !== "custom") {
+    setPhotoPosition(slide, { x: 50, y: fields.focal2.value === "top" ? 0 : fields.focal2.value === "bottom" ? 100 : 50 }, true);
+  }
   slide.layout = fields.layout.value;
   slide.imageFit = fields.imageFit.value;
   slide.backdrop = fields.backdrop.value;
@@ -696,15 +789,7 @@ function syncFromEditor() {
   slide.hideBorder = fields.hideBorder.checked;
   slide.isItalic = fields.isItalic.checked;
   
-  const focal2Wrapper = document.getElementById("focal-2-wrapper");
-  const focalLabel1 = document.getElementById("focal-label-1");
-  if (slide.layout === 'stacked') {
-    focal2Wrapper.style.display = "block";
-    focalLabel1.textContent = "Focal point 1 (Top Image)";
-  } else {
-    focal2Wrapper.style.display = "none";
-    focalLabel1.textContent = "Focal point";
-  }
+  updatePhotoControls(slide);
 
   paintCard(slide);
   renderRail();
@@ -738,7 +823,10 @@ function fileToDataUrl(file) {
 document.getElementById('image-upload').addEventListener('change', async function(e) {
   const file = e.target.files[0];
   if (file) {
-    slides[activeIndex].imageUrl = await fileToDataUrl(file);
+    const slide = slides[activeIndex];
+    slide.imageName = file.name;
+    updatePhotoControls(slide);
+    slide.imageUrl = await fileToDataUrl(file);
     paintCard(slides[activeIndex]);
     renderRail();
   }
@@ -747,7 +835,10 @@ document.getElementById('image-upload').addEventListener('change', async functio
 document.getElementById('image-upload-2').addEventListener('change', async function(e) {
   const file = e.target.files[0];
   if (file) {
-    slides[activeIndex].imageUrl2 = await fileToDataUrl(file);
+    const slide = slides[activeIndex];
+    slide.imageName2 = file.name;
+    updatePhotoControls(slide);
+    slide.imageUrl2 = await fileToDataUrl(file);
     paintCard(slides[activeIndex]);
     renderRail();
   }
@@ -810,7 +901,7 @@ document.getElementById("download-selected-slide").addEventListener("click", asy
 
 document.getElementById("add-slide").addEventListener("click", () => {
   slides.push({
-    stage: "New Beat", number: "00 / 00",
+    stage: "", number: "00 / 00",
     headline: "", body: "",
     caption: "", cta: "", imageUrl: "", imageUrl2: "", imageFit: "cover", focal: "center", focal2: "center", layout: "photo-first", backdrop: "none", contrast: "standard", hideText: true, hideBorder: false, isItalic: false
   });
@@ -869,13 +960,13 @@ async function drawSlideOnCanvas(ctx, slide, targetW, targetH) {
 
   if (slide.layout === "stacked") {
     if (img1) {
-      drawNativeImage(ctx, img1, 0, 0, targetW, targetH * 0.5, slide.imageFit, slide.focal);
+      drawNativeImage(ctx, img1, 0, 0, targetW, targetH * 0.5, slide.imageFit, getPhotoPosition(slide));
     } else {
       ctx.fillStyle = "rgba(5,24,36,0.15)";
       ctx.fillRect(0, 0, targetW, targetH * 0.5);
     }
     if (img2) {
-      drawNativeImage(ctx, img2, 0, targetH * 0.5, targetW, targetH * 0.5, slide.imageFit, slide.focal2);
+      drawNativeImage(ctx, img2, 0, targetH * 0.5, targetW, targetH * 0.5, slide.imageFit, getPhotoPosition(slide, true));
     } else {
       ctx.fillStyle = "rgba(30,136,133,0.15)";
       ctx.fillRect(0, targetH * 0.5, targetW, targetH * 0.5);
@@ -884,11 +975,11 @@ async function drawSlideOnCanvas(ctx, slide, targetW, targetH) {
     if (img1) {
       ctx.save();
       ctx.filter = "saturate(0.88)";
-      drawNativeImage(ctx, img1, 0, targetH * 0.6, targetW, targetH * 0.4, slide.imageFit, slide.focal);
+      drawNativeImage(ctx, img1, 0, targetH * 0.6, targetW, targetH * 0.4, slide.imageFit, getPhotoPosition(slide));
       ctx.restore();
     }
   } else if (img1) {
-    drawNativeImage(ctx, img1, 0, 0, targetW, targetH, slide.imageFit, slide.focal);
+    drawNativeImage(ctx, img1, 0, 0, targetW, targetH, slide.imageFit, getPhotoPosition(slide));
   }
 
   if (slide.backdrop === "dark") {
@@ -1021,7 +1112,7 @@ document.getElementById("download-carousel").addEventListener("click", async () 
 
 // Removed Instagram publish functionality
 
-function drawNativeImage(ctx, img, x, y, w, h, fit, focal) {
+function drawNativeImage(ctx, img, x, y, w, h, fit, position) {
   ctx.save();
   ctx.beginPath();
   ctx.rect(x, y, w, h);
@@ -1035,13 +1126,13 @@ function drawNativeImage(ctx, img, x, y, w, h, fit, focal) {
     if (imgRatio > boxRatio) {
       renderW = w;
       renderH = w / imgRatio;
-      renderX = x;
-      renderY = y + (h - renderH) / 2;
+      renderX = x + (w - renderW) * position.x / 100;
+      renderY = y + (h - renderH) * position.y / 100;
     } else {
       renderH = h;
       renderW = h * imgRatio;
-      renderX = x + (w - renderW) / 2;
-      renderY = y;
+      renderX = x + (w - renderW) * position.x / 100;
+      renderY = y + (h - renderH) * position.y / 100;
     }
     ctx.fillStyle = "#fffaf0";
     ctx.fillRect(x, y, w, h);
@@ -1049,15 +1140,13 @@ function drawNativeImage(ctx, img, x, y, w, h, fit, focal) {
     if (imgRatio > boxRatio) {
       renderH = h;
       renderW = h * imgRatio;
-      renderX = x + (w - renderW) / 2;
+      renderX = x + (w - renderW) * position.x / 100;
       renderY = y;
     } else {
       renderW = w;
       renderH = w / imgRatio;
       renderX = x;
-      if (focal === 'top') renderY = y;
-      else if (focal === 'bottom') renderY = y + h - renderH;
-      else renderY = y + (h - renderH) / 2;
+      renderY = y + (h - renderH) * position.y / 100;
     }
   }
   ctx.drawImage(img, renderX, renderY, renderW, renderH);
