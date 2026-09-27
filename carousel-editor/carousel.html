@@ -851,6 +851,15 @@ function sleep(ms) {
 }
 
 function canvasToBlob(canvas, mimeType, quality) {
+  return new Promise((resolve, reject) => {
+    canvas.toBlob((blob) => {
+      if (blob) resolve(blob);
+      else reject(new Error("The browser could not create an export file."));
+    }, mimeType, quality);
+  });
+}
+
+async function drawSlideOnCanvas(ctx, slide, targetW, targetH) {
   ctx.clearRect(0, 0, targetW, targetH);
   ctx.fillStyle = "#fffaf0";
   ctx.fillRect(0, 0, targetW, targetH);
@@ -1122,5 +1131,8 @@ documentation.innerHTML = `
       <li><strong>File Naming:</strong> Slides are saved as "carousel-slide-01.png", "carousel-slide-02.png", etc.</li>
     </ul>
   </div>
+`;
+document.body.appendChild(documentation);
+</script>
 </body>
 </html>
