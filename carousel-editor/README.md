@@ -59,7 +59,15 @@ Renders the live 4:5 preview: layout class, overlay and contrast classes, border
 
 ### `renderRail()`
 
-Rebuilds the thumbnail rail, which wraps onto extra rows as slides are added. Each thumb is clickable (select slide) and draggable (reorder). Dropping updates `slides` and `activeIndex` so the selection stays on the same card. Updates the “N slides” label.
+Rebuilds the thumbnail rail, which wraps onto extra rows as slides are added. Each thumb is clickable (select slide) and draggable (reorder). While dragging, a line shows the slot the slide will land in, and anywhere in the Slide sequence section accepts the drop. No line means the drop would not move the slide. Dropping updates `slides` and `activeIndex` so the selection stays on the same card, and the moved thumb flashes. Updates the “N slides” label.
+
+### Multi-select
+
+Tick a thumb's checkbox or Ctrl/⌘-click to select several slides, Shift-click to select a range, or use **Select all**. A plain click clears the selection. **Delete selected** asks for confirmation; deleting every slide leaves one blank slide. Dragging moves one slide at a time and leaves the selection unchanged.
+
+### Keyboard controls
+
+Outside text fields and dropdowns: arrow keys move between slides, Shift+arrow extends the selection, Delete or Backspace removes the selected slides (with confirmation) or the open slide (without), and Esc clears the selection.
 
 ### `findDuplicatePhotos()`
 
