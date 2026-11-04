@@ -243,6 +243,8 @@ textarea.field-control { min-height: 84px; resize: vertical; }
   aspect-ratio: 4 / 5;
   overflow: hidden;
   position: relative;
+  text-align: center;
+  user-select: none;
   border: 2px solid transparent;
   border-radius: 7px;
   background: var(--paper);
@@ -256,12 +258,18 @@ textarea.field-control { min-height: 84px; resize: vertical; }
 .thumb-item.is-duplicate { border-color: #b65045; }
 .thumb-item.is-active { border-color: var(--teal); box-shadow: 0 0 0 3px rgba(30, 136, 133, 0.18); }
 .thumb-item.is-dragging { opacity: 0.4; transform: scale(0.95); }
-.thumb-item.drag-over { border-color: var(--gold); border-style: dashed; transform: scale(1.05); }
+.thumb-item.is-selected { box-shadow: 0 0 0 3px var(--gold); }
+.thumb-check { position: absolute; top: 4px; right: 4px; z-index: 3; width: 16px; height: 16px; margin: 0; cursor: pointer; accent-color: var(--teal); }
+.thumb-item:focus-visible { outline: 2px solid var(--teal); outline-offset: 2px; }
+.thumb-item.just-moved { animation: thumb-moved 900ms ease-out; }
+@keyframes thumb-moved { from { box-shadow: 0 0 0 5px var(--gold); } to { box-shadow: 0 0 0 5px transparent; } }
+
+.drop-line { position: absolute; z-index: 3; width: 4px; border-radius: 2px; background: #0c3150; pointer-events: none; }
 
 .thumb-photo { position: absolute; inset: 0; background-size: cover; background-position: center; }
 .thumb-copy { position: relative; z-index: 1; padding: 0.48rem; height: 100%; display: flex; flex-direction: column; justify-content: flex-end; pointer-events: none; }
 .thumb-title { font-family: "Playfair Display", serif; font-size: 0.68rem; font-weight: 700; line-height: 1.02; pointer-events: none; }
-.thumb-duplicate { position: absolute; top: 4px; left: 4px; right: 4px; z-index: 2; padding: 2px 0; border-radius: 4px; background: #b65045; color: #fffaf0; font-size: 0.58rem; font-weight: 800; text-align: center; pointer-events: none; }
+.thumb-duplicate { position: absolute; top: 4px; left: 4px; right: 24px; z-index: 2; padding: 2px 0; border-radius: 4px; background: #b65045; color: #fffaf0; font-size: 0.58rem; font-weight: 800; text-align: center; pointer-events: none; }
 
 @media (max-width: 1023px) {
   .workspace-grid { grid-template-columns: 1fr !important; }
@@ -501,10 +509,20 @@ textarea.field-control { min-height: 84px; resize: vertical; }
       <section class="mt-6">
         <div class="flex items-center justify-between gap-4 mb-3">
           <h3 class="font-extrabold text-[#0c3150] text-[17px]">Slide sequence</h3>
-          <p id="rail-count" class="text-xs font-bold uppercase tracking-[0.12em] text-[#617078]">6 slides</p>
+          <div class="flex items-center gap-3">
+            <button type="button" id="select-all-slides" class="text-xs font-bold text-[#0c3150] hover:underline">Select all</button>
+            <p id="rail-count" class="text-xs font-bold uppercase tracking-[0.12em] text-[#617078]">6 slides</p>
+          </div>
         </div>
         <p id="duplicate-notice" class="hidden mb-3 rounded-md bg-[#f8dfd8] px-3 py-2 text-xs font-bold text-[#9d382f]"></p>
-        <div id="thumbnail-rail" class="flex flex-wrap gap-3 pb-3"></div>
+        <div id="thumbnail-rail" class="relative flex flex-wrap gap-3 pb-3"></div>
+        <!-- Below the thumbs, so appearing never shifts them under the pointer mid-selection -->
+        <div id="selection-bar" class="hidden sticky bottom-3 z-10 flex flex-wrap items-center gap-2 mb-3 rounded-md bg-[#ead9aa] px-3 py-2 shadow-md">
+          <p id="selection-count" class="text-xs font-bold text-[#0c3150] mr-auto"></p>
+          <button type="button" id="clear-selection" class="text-xs font-bold text-[#0c3150] hover:underline px-2 py-1">Clear</button>
+          <button type="button" id="delete-selected" class="text-xs font-bold text-white bg-[#9d382f] hover:bg-[#b65045] rounded-md px-3 py-1.5">Delete selected</button>
+        </div>
+        <p class="text-xs text-[#617078]">Tick slides or Ctrl/⌘-click to select several. Shift-click selects a range. Arrow keys move between slides, Delete removes.</p>
       </section>
     </aside>
   </div>
@@ -518,6 +536,8 @@ const slides = [
 ];
 
 let activeIndex = 0;
+const selectedSlides = new Set();
+let selectionAnchor = null;
 
 const fields = {
   stage: document.getElementById("story-stage"),
@@ -743,9 +763,11 @@ function renderRail() {
   renderDuplicateNotice(duplicates);
 
   slides.forEach((slide, index) => {
-    const item = document.createElement("button");
-    item.type = "button";
-    item.className = "thumb-item" + (index === activeIndex ? " is-active" : "");
+    // A div rather than a button, because Firefox will not drag buttons
+    const item = document.createElement("div");
+    item.setAttribute("role", "button");
+    item.tabIndex = 0;
+    item.className = "thumb-item" + (index === activeIndex ? " is-active" : "") + (selectedSlides.has(slide) ? " is-selected" : "");
     item.dataset.index = index;
     item.draggable = true; 
     
@@ -765,43 +787,149 @@ function renderRail() {
       item.insertAdjacentHTML("beforeend", `<span class="thumb-duplicate">Duplicate</span>`);
     }
 
-    item.addEventListener("click", () => {
-      activeIndex = index;
-      updateInterface();
+    const check = document.createElement("input");
+    check.type = "checkbox";
+    check.className = "thumb-check";
+    check.checked = selectedSlides.has(slide);
+    check.setAttribute("aria-label", "Select slide " + (index + 1));
+    check.addEventListener("click", (e) => {
+      e.stopPropagation();
+      toggleSlideSelection(slide);
+      selectionAnchor = slide;
+      renderRail();
+    });
+    item.appendChild(check);
+
+    item.addEventListener("click", (e) => {
+      if (e.ctrlKey || e.metaKey) {
+        // The open slide joins the selection on the first Ctrl-click, as in a file manager
+        if (selectedSlides.size === 0) selectedSlides.add(slides[activeIndex]);
+        if (index !== activeIndex) toggleSlideSelection(slide);
+        selectionAnchor = slide;
+        renderRail();
+      } else if (e.shiftKey) {
+        const anchorIndex = slides.includes(selectionAnchor) ? slides.indexOf(selectionAnchor) : activeIndex;
+        const [start, end] = [Math.min(anchorIndex, index), Math.max(anchorIndex, index)];
+        slides.slice(start, end + 1).forEach((rangeSlide) => selectedSlides.add(rangeSlide));
+        renderRail();
+      } else {
+        selectedSlides.clear();
+        selectionAnchor = slide;
+        activeIndex = index;
+        updateInterface();
+      }
+    });
+
+    item.addEventListener("keydown", (e) => {
+      if (e.target !== item) return;
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        item.click();
+      }
     });
 
     item.addEventListener("dragstart", (e) => {
       e.dataTransfer.effectAllowed = "move";
-      e.dataTransfer.setData("text/plain", index);
+      // A custom type, so dropping a thumb on a text field does not type its index there
+      e.dataTransfer.setData("application/x-carousel-slide", index);
+      railDrag = { fromIndex: index, insertIndex: null };
+      rail.appendChild(dropLine);
+      dropLine.style.display = "none";
       setTimeout(() => item.classList.add("is-dragging"), 0);
     });
     item.addEventListener("dragend", () => {
       item.classList.remove("is-dragging");
-      document.querySelectorAll('.thumb-item').forEach(el => el.classList.remove('drag-over'));
-    });
-    item.addEventListener("dragover", (e) => { e.preventDefault(); e.dataTransfer.dropEffect = "move"; });
-    item.addEventListener("dragenter", (e) => { e.preventDefault(); item.classList.add('drag-over'); });
-    item.addEventListener("dragleave", () => { item.classList.remove('drag-over'); });
-    item.addEventListener("drop", (e) => {
-      e.preventDefault();
-      item.classList.remove('drag-over');
-      const fromIndex = parseInt(e.dataTransfer.getData("text/plain"), 10);
-      const toIndex = index;
-      if (fromIndex !== toIndex) {
-        const [movedSlide] = slides.splice(fromIndex, 1);
-        slides.splice(toIndex, 0, movedSlide);
-        if (activeIndex === fromIndex) { activeIndex = toIndex; } 
-        else if (activeIndex > fromIndex && activeIndex <= toIndex) { activeIndex--; } 
-        else if (activeIndex < fromIndex && activeIndex >= toIndex) { activeIndex++; }
-        updateInterface();
-        setMessage(`Moved slide to position ${toIndex + 1}`);
-      }
+      endRailDrag();
     });
 
     rail.appendChild(item);
   });
   document.getElementById("rail-count").textContent = slides.length + " slides";
+  renderSelectionBar();
 }
+
+function toggleSlideSelection(slide) {
+  if (selectedSlides.has(slide)) selectedSlides.delete(slide);
+  else selectedSlides.add(slide);
+}
+
+function renderSelectionBar() {
+  // Selected slides are tracked by object so the selection survives reordering; drop any since deleted
+  selectedSlides.forEach((slide) => { if (!slides.includes(slide)) selectedSlides.delete(slide); });
+  const count = selectedSlides.size;
+  document.getElementById("selection-bar").classList.toggle("hidden", count === 0);
+  document.getElementById("selection-count").textContent = count + (count === 1 ? " slide selected" : " slides selected");
+}
+
+// Slide reordering: the whole "Slide sequence" section accepts the drop, and the line shows where the slide will land
+const railElement = document.getElementById("thumbnail-rail");
+const railDropZone = railElement.parentElement;
+const dropLine = document.createElement("div");
+dropLine.className = "drop-line";
+let railDrag = null;
+
+function endRailDrag() {
+  railDrag = null;
+  dropLine.remove();
+}
+
+// Finds the slot nearest the pointer. Uses offset metrics, which ignore the hover and dragging transforms.
+function findInsertionPoint(clientX, clientY) {
+  const bounds = railElement.getBoundingClientRect();
+  const x = clientX - bounds.left;
+  const y = clientY - bounds.top;
+  const thumbs = [...railElement.querySelectorAll(".thumb-item")];
+  const verticalDistance = (thumb) => Math.max(thumb.offsetTop - y, y - (thumb.offsetTop + thumb.offsetHeight), 0);
+  const nearest = thumbs.reduce((best, thumb) => verticalDistance(thumb) < verticalDistance(best) ? thumb : best);
+  const row = thumbs.filter((thumb) => thumb.offsetTop === nearest.offsetTop);
+  const next = row.find((thumb) => x < thumb.offsetLeft + thumb.offsetWidth / 2);
+  const last = row[row.length - 1];
+  return {
+    index: next ? Number(next.dataset.index) : Number(last.dataset.index) + 1,
+    left: next ? next.offsetLeft - 8 : last.offsetLeft + last.offsetWidth + 4,
+    top: nearest.offsetTop,
+    height: nearest.offsetHeight
+  };
+}
+
+function handleRailDragOver(e) {
+  if (!railDrag) return;
+  e.preventDefault();
+  e.dataTransfer.dropEffect = "move";
+  const point = findInsertionPoint(e.clientX, e.clientY);
+  // The slots either side of the dragged slide would not move it, so no line is shown there
+  const wouldMove = point.index !== railDrag.fromIndex && point.index !== railDrag.fromIndex + 1;
+  railDrag.insertIndex = wouldMove ? point.index : null;
+  dropLine.style.display = wouldMove ? "" : "none";
+  dropLine.style.left = point.left + "px";
+  dropLine.style.top = point.top + "px";
+  dropLine.style.height = point.height + "px";
+}
+
+railDropZone.addEventListener("dragenter", handleRailDragOver);
+railDropZone.addEventListener("dragover", handleRailDragOver);
+railDropZone.addEventListener("dragleave", (e) => {
+  if (!railDrag || railDropZone.contains(e.relatedTarget)) return;
+  railDrag.insertIndex = null;
+  dropLine.style.display = "none";
+});
+railDropZone.addEventListener("drop", (e) => {
+  if (!railDrag) return;
+  e.preventDefault();
+  const { fromIndex, insertIndex } = railDrag;
+  endRailDrag();
+  if (insertIndex === null) return;
+
+  const toIndex = insertIndex > fromIndex ? insertIndex - 1 : insertIndex;
+  const [movedSlide] = slides.splice(fromIndex, 1);
+  slides.splice(toIndex, 0, movedSlide);
+  if (activeIndex === fromIndex) { activeIndex = toIndex; }
+  else if (activeIndex > fromIndex && activeIndex <= toIndex) { activeIndex--; }
+  else if (activeIndex < fromIndex && activeIndex >= toIndex) { activeIndex++; }
+  updateInterface();
+  railElement.querySelector(`[data-index="${toIndex}"]`).classList.add("just-moved");
+  setMessage(`Moved slide to position ${toIndex + 1}`);
+});
 
 function updateInterface() {
   normalizeNumbers();
@@ -993,8 +1121,88 @@ document.getElementById("duplicate-slide").addEventListener("click", () => {
 document.getElementById("delete-slide").addEventListener("click", () => {
   if (slides.length === 1) return setMessage("Keep at least one slide.");
   slides.splice(activeIndex, 1);
-  activeIndex = Math.max(0, activeIndex - 1);
+  activeIndex = Math.min(activeIndex, slides.length - 1);
   updateInterface();
+});
+
+document.getElementById("select-all-slides").addEventListener("click", () => {
+  slides.forEach((slide) => selectedSlides.add(slide));
+  renderRail();
+});
+
+document.getElementById("clear-selection").addEventListener("click", () => {
+  selectedSlides.clear();
+  renderRail();
+});
+
+document.getElementById("delete-selected").addEventListener("click", () => {
+  const count = selectedSlides.size;
+  const deletingAll = count === slides.length;
+  const prompt = deletingAll
+    ? `Delete all ${count} slides? You will start again with one blank slide. This can't be undone.`
+    : `Delete ${count} ${count === 1 ? "slide" : "slides"}? This can't be undone.`;
+  if (!window.confirm(prompt)) return;
+
+  const activeSlide = slides[activeIndex];
+  const deletedBeforeActive = slides.slice(0, activeIndex).filter((slide) => selectedSlides.has(slide)).length;
+  const remaining = slides.filter((slide) => !selectedSlides.has(slide));
+  slides.length = 0;
+  slides.push(...(remaining.length > 0 ? remaining : [createBlankSlide()]));
+  // Stay on the open slide if it survived, otherwise on whichever slide moved into its place
+  activeIndex = slides.includes(activeSlide) ? slides.indexOf(activeSlide) : Math.min(activeIndex - deletedBeforeActive, slides.length - 1);
+  selectedSlides.clear();
+  updateInterface();
+  setMessage(`Deleted ${count} ${count === 1 ? "slide" : "slides"}.`);
+});
+
+function isTypingTarget(element) {
+  if (element.isContentEditable || element.tagName === "TEXTAREA" || element.tagName === "SELECT") return true;
+  return element.tagName === "INPUT" && element.type !== "checkbox" && element.type !== "file";
+}
+
+// The slide directly above or below the open one, or the last in that row if the row is shorter
+function findSlideInAdjacentRow(direction) {
+  const thumbs = [...railElement.querySelectorAll(".thumb-item")];
+  const current = thumbs[activeIndex];
+  const rowTops = [...new Set(thumbs.map((thumb) => thumb.offsetTop))];
+  const targetTop = rowTops[rowTops.indexOf(current.offsetTop) + direction];
+  if (targetTop === undefined) return activeIndex;
+  const row = thumbs.filter((thumb) => thumb.offsetTop === targetTop);
+  const target = row.find((thumb) => thumb.offsetLeft === current.offsetLeft) || row[row.length - 1];
+  return Number(target.dataset.index);
+}
+
+document.addEventListener("keydown", (e) => {
+  if (railDrag || e.ctrlKey || e.metaKey || e.altKey || isTypingTarget(e.target)) return;
+
+  if (e.key === "Delete" || e.key === "Backspace") {
+    e.preventDefault();
+    document.getElementById(selectedSlides.size > 0 ? "delete-selected" : "delete-slide").click();
+    return;
+  }
+  if (e.key === "Escape") {
+    selectedSlides.clear();
+    renderRail();
+    return;
+  }
+
+  const targets = {
+    ArrowLeft: () => activeIndex - 1,
+    ArrowRight: () => activeIndex + 1,
+    ArrowUp: () => findSlideInAdjacentRow(-1),
+    ArrowDown: () => findSlideInAdjacentRow(1)
+  };
+  if (!targets[e.key]) return;
+  e.preventDefault();
+  const nextIndex = Math.max(0, Math.min(slides.length - 1, targets[e.key]()));
+  if (e.shiftKey) {
+    selectedSlides.add(slides[activeIndex]);
+    selectedSlides.add(slides[nextIndex]);
+  }
+  activeIndex = nextIndex;
+  selectionAnchor = slides[activeIndex];
+  updateInterface();
+  railElement.querySelector(`[data-index="${activeIndex}"]`).scrollIntoView({ block: "nearest" });
 });
 
 const EXPORT_W = 2160;
