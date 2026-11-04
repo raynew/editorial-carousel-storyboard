@@ -61,6 +61,14 @@ Renders the live 4:5 preview: layout class, overlay and contrast classes, border
 
 Rebuilds the thumbnail rail, which wraps onto extra rows as slides are added. Each thumb is clickable (select slide) and draggable (reorder). Dropping updates `slides` and `activeIndex` so the selection stays on the same card. Updates the “N slides” label.
 
+### `findDuplicatePhotos()`
+
+Scans the photo file names on all slides and groups possible duplicates, ignoring case, extension, and copy markers (`IMG_1 (1).jpg`, `IMG_1 - Copy.jpg`). A bare `(1)` only counts when the unnumbered name is also present. `renderRail()` badges the matching thumbs and lists the groups above the rail. It only compares names, so photos that differ but share a name are flagged too, and nothing is removed automatically.
+
+### Folder upload
+
+**Upload photo folder** loads every image in the chosen folder, including subfolders, as one slide per photo in file name order. Empty slides fill first, then new slides are added. The per-slide upload inputs remain for swapping one photo and for Photo 2 in stacked layout.
+
 ### `updateInterface()`
 
 Full refresh: `normalizeNumbers()`, `fillEditor()`, `paintCard()`, `renderRail()`, then enables/disables Previous/Next and updates the inline counter.
