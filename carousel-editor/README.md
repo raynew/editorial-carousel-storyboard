@@ -61,6 +61,10 @@ Renders the live 4:5 preview: layout class, overlay and contrast classes, border
 
 Rebuilds the thumbnail rail, which wraps onto extra rows as slides are added. Each thumb is clickable (select slide) and draggable (reorder). While dragging, a line shows the slot the slide will land in, and anywhere in the Slide sequence section accepts the drop. No line means the drop would not move the slide. Dropping updates `slides` and `activeIndex` so the selection stays on the same card, and the moved thumb flashes. Updates the “N slides” label.
 
+### `applyTextLayout()`
+
+Collapses the Story structure and Words & direction panels while the open slide has **Hide all text** on. When every slide has text hidden, the Slide sequence also moves into the left column, which gets wider. Mixed slides keep the standard layout, so the thumbs stay put when moving between slides.
+
 ### Multi-select
 
 Tick a thumb's checkbox or Ctrl/⌘-click to select several slides, Shift-click to select a range, or use **Select all**. A plain click clears the selection. **Delete selected** asks for confirmation; deleting every slide leaves one blank slide. Dragging moves one slide at a time and leaves the selection unchanged.
