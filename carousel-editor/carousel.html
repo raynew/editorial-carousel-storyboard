@@ -292,6 +292,67 @@ textarea.field-control { min-height: 84px; resize: vertical; }
         <p id="slide-position" class="text-[#0c3150] font-extrabold text-sm">Slide 1 of 6</p>
       </div>
 
+      <section class="bg-[#0c3150] rounded-xl p-5 shadow-sm text-[#fffaf0] mb-5">
+        <div class="flex items-center justify-between gap-4 mb-4">
+          <h3 class="font-extrabold text-[17px]">Photography & Layout</h3>
+          <label class="flex items-center gap-2 text-sm font-bold cursor-pointer bg-[#08243a] px-3 py-1.5 rounded-md">
+            <input type="checkbox" id="remove-border" class="w-4 h-4 accent-[#c89834]">
+            Remove border
+          </label>
+        </div>
+        
+        <div class="mt-4">
+          <label class="block text-sm font-bold mb-2 text-[#fffaf0]">Slide composition</label>
+          <select id="layout-type" class="field-control bg-[#fffaf0] text-[#10191d] font-bold">
+            <option value="photo-first">Photo-first (Full Background)</option>
+            <option value="text-first">Text-first (Split Layout)</option>
+            <option value="stacked">Stacked photos (Top & Bottom)</option>
+          </select>
+        </div>
+
+        <div class="grid sm:grid-cols-2 gap-4 mt-4">
+          <div id="upload-1-container" style="grid-column: 1 / -1;">
+            <label class="block text-sm font-bold mb-2 text-[#fffaf0]">Upload Photo 1</label>
+            <input type="file" id="image-upload" accept="image/*" class="field-control bg-[#fffaf0] text-[#10191d] text-xs">
+            <p id="image-name" class="mt-1 text-xs text-[#d9e3de] truncate" aria-live="polite"></p>
+          </div>
+          <div id="upload-2-container" style="display: none;">
+            <label class="block text-sm font-bold mb-2 text-[#fffaf0] text-opacity-80">Upload Photo 2 (Stacked)</label>
+            <input type="file" id="image-upload-2" accept="image/*" class="field-control bg-[#fffaf0] text-[#10191d] text-xs">
+            <p id="image-name-2" class="mt-1 text-xs text-[#d9e3de] truncate" aria-live="polite"></p>
+          </div>
+        </div>
+
+        <div class="grid sm:grid-cols-2 gap-4 mt-4">
+          <div>
+            <label class="block text-sm font-bold mb-2 text-[#fffaf0]">Image Fit</label>
+            <select id="image-fit" class="field-control bg-[#fffaf0] text-[#10191d]">
+              <option value="cover">Fill Area (Crop)</option>
+              <option value="contain">Fit Entire Image (Borders)</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-sm font-bold mb-2 text-[#fffaf0]" id="focal-label-1">Focal point</label>
+            <select id="focal-point" class="field-control bg-[#fffaf0] text-[#10191d]">
+              <option value="center">Centre</option>
+              <option value="top">Top</option>
+              <option value="bottom">Bottom</option>
+              <option value="custom">Custom</option>
+            </select>
+          </div>
+        </div>
+
+        <div id="focal-2-wrapper" class="mt-4" style="display: none;">
+          <label class="block text-sm font-bold mb-2 text-[#fffaf0]">Focal point 2 (Bottom Image)</label>
+          <select id="focal-point-2" class="field-control bg-[#fffaf0] text-[#10191d]">
+            <option value="center">Centre</option>
+            <option value="top">Top</option>
+            <option value="bottom">Bottom</option>
+            <option value="custom">Custom</option>
+          </select>
+        </div>
+      </section>
+
       <section class="bg-[#fffaf0] border border-[#0c3150]/15 rounded-xl p-5 shadow-sm mb-5">
         <div class="flex items-center justify-between gap-4 mb-3">
           <h3 class="font-extrabold text-[#0c3150] text-[17px]">Story structure & readability</h3>
@@ -365,67 +426,6 @@ textarea.field-control { min-height: 84px; resize: vertical; }
           <div class="mt-4">
             <label class="block text-sm font-bold mb-2">Call to action</label>
             <input id="cta-copy" class="field-control" type="text">
-          </div>
-        </section>
-
-        <section class="bg-[#0c3150] rounded-xl p-5 shadow-sm text-[#fffaf0]">
-          <div class="flex items-center justify-between gap-4 mb-4">
-            <h3 class="font-extrabold text-[17px]">Photography & Layout</h3>
-            <label class="flex items-center gap-2 text-sm font-bold cursor-pointer bg-[#08243a] px-3 py-1.5 rounded-md">
-              <input type="checkbox" id="remove-border" class="w-4 h-4 accent-[#c89834]">
-              Remove border
-            </label>
-          </div>
-          
-          <div class="mt-4">
-            <label class="block text-sm font-bold mb-2 text-[#fffaf0]">Slide composition</label>
-            <select id="layout-type" class="field-control bg-[#fffaf0] text-[#10191d] font-bold">
-              <option value="photo-first">Photo-first (Full Background)</option>
-              <option value="text-first">Text-first (Split Layout)</option>
-              <option value="stacked">Stacked photos (Top & Bottom)</option>
-            </select>
-          </div>
-
-          <div class="grid sm:grid-cols-2 gap-4 mt-4">
-            <div id="upload-1-container" style="grid-column: 1 / -1;">
-              <label class="block text-sm font-bold mb-2 text-[#fffaf0]">Upload Photo 1</label>
-              <input type="file" id="image-upload" accept="image/*" class="field-control bg-[#fffaf0] text-[#10191d] text-xs">
-              <p id="image-name" class="mt-1 text-xs text-[#d9e3de] truncate" aria-live="polite"></p>
-            </div>
-            <div id="upload-2-container" style="display: none;">
-              <label class="block text-sm font-bold mb-2 text-[#fffaf0] text-opacity-80">Upload Photo 2 (Stacked)</label>
-              <input type="file" id="image-upload-2" accept="image/*" class="field-control bg-[#fffaf0] text-[#10191d] text-xs">
-              <p id="image-name-2" class="mt-1 text-xs text-[#d9e3de] truncate" aria-live="polite"></p>
-            </div>
-          </div>
-
-          <div class="grid sm:grid-cols-2 gap-4 mt-4">
-            <div>
-              <label class="block text-sm font-bold mb-2 text-[#fffaf0]">Image Fit</label>
-              <select id="image-fit" class="field-control bg-[#fffaf0] text-[#10191d]">
-                <option value="cover">Fill Area (Crop)</option>
-                <option value="contain">Fit Entire Image (Borders)</option>
-              </select>
-            </div>
-            <div>
-              <label class="block text-sm font-bold mb-2 text-[#fffaf0]" id="focal-label-1">Focal point</label>
-              <select id="focal-point" class="field-control bg-[#fffaf0] text-[#10191d]">
-                <option value="center">Centre</option>
-                <option value="top">Top</option>
-                <option value="bottom">Bottom</option>
-                <option value="custom">Custom</option>
-              </select>
-            </div>
-          </div>
-
-          <div id="focal-2-wrapper" class="mt-4" style="display: none;">
-            <label class="block text-sm font-bold mb-2 text-[#fffaf0]">Focal point 2 (Bottom Image)</label>
-            <select id="focal-point-2" class="field-control bg-[#fffaf0] text-[#10191d]">
-              <option value="center">Centre</option>
-              <option value="top">Top</option>
-              <option value="bottom">Bottom</option>
-              <option value="custom">Custom</option>
-            </select>
           </div>
         </section>
 
