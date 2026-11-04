@@ -59,7 +59,7 @@ Renders the live 4:5 preview: layout class, overlay and contrast classes, border
 
 ### `renderRail()`
 
-Rebuilds the thumbnail strip. Each thumb is clickable (select slide) and draggable (reorder). Dropping updates `slides` and `activeIndex` so the selection stays on the same card. Updates the “N slides” label.
+Rebuilds the thumbnail rail, which wraps onto extra rows as slides are added. Each thumb is clickable (select slide) and draggable (reorder). Dropping updates `slides` and `activeIndex` so the selection stays on the same card. Updates the “N slides” label.
 
 ### `updateInterface()`
 
