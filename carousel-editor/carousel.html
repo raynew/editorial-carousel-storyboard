@@ -271,6 +271,17 @@ textarea.field-control { min-height: 84px; resize: vertical; }
 .thumb-title { font-family: "Playfair Display", serif; font-size: 0.68rem; font-weight: 700; line-height: 1.02; pointer-events: none; }
 .thumb-duplicate { position: absolute; top: 4px; left: 4px; right: 24px; z-index: 2; padding: 2px 0; border-radius: 4px; background: #b65045; color: #fffaf0; font-size: 0.58rem; font-weight: 800; text-align: center; pointer-events: none; }
 
+.workspace-grid.text-collapsed { grid-template-columns: minmax(0, 1.25fr) minmax(330px, 0.85fr); }
+#rail-slot-editor > section { margin: 0 0 1.25rem; }
+
+@media (min-width: 1024px) {
+  /* In both layouts, so the panel keeps its height and Hide all text stays under the pointer when toggled */
+  #photo-source-row { display: grid; grid-template-columns: 11.5rem minmax(0, 1fr); gap: 1rem; margin-top: 1rem; }
+  #photo-source-row > div { margin-top: 0; }
+  #photo-source-row .action-button { white-space: nowrap; }
+  #layout-type { font-size: 0.875rem; }
+}
+
 @media (max-width: 1023px) {
   .workspace-grid { grid-template-columns: 1fr !important; }
   .preview-area { order: -1; }
@@ -311,21 +322,23 @@ textarea.field-control { min-height: 84px; resize: vertical; }
           </label>
         </div>
         
-        <div class="mt-4">
-          <label class="action-button bg-[#c89834] text-[#10191d] hover:bg-[#b38629] cursor-pointer m-0">
-            📁 Upload photo folder
-            <input type="file" id="folder-upload" webkitdirectory multiple class="hidden">
-          </label>
-          <p class="mt-2 text-xs text-[#d9e3de]">One slide per photo, in file name order. Empty slides fill first.</p>
-        </div>
+        <div id="photo-source-row">
+          <div class="mt-4">
+            <label class="action-button bg-[#c89834] text-[#10191d] hover:bg-[#b38629] cursor-pointer m-0" title="Empty slides fill first, then new slides are added.">
+              📁 Upload photo folder
+              <input type="file" id="folder-upload" webkitdirectory multiple class="hidden">
+            </label>
+            <p class="mt-2 text-xs text-[#d9e3de]">One slide per photo, in file name order.</p>
+          </div>
 
-        <div class="mt-4">
-          <label class="block text-sm font-bold mb-2 text-[#fffaf0]">Slide composition</label>
-          <select id="layout-type" class="field-control bg-[#fffaf0] text-[#10191d] font-bold">
-            <option value="photo-first">Photo-first (Full Background)</option>
-            <option value="text-first">Text-first (Split Layout)</option>
-            <option value="stacked">Stacked photos (Top & Bottom)</option>
-          </select>
+          <div class="mt-4">
+            <label class="block text-sm font-bold mb-2 text-[#fffaf0]">Slide composition</label>
+            <select id="layout-type" class="field-control bg-[#fffaf0] text-[#10191d] font-bold">
+              <option value="photo-first">Photo-first (Full Background)</option>
+              <option value="text-first">Text-first (Split Layout)</option>
+              <option value="stacked">Stacked photos (Top & Bottom)</option>
+            </select>
+          </div>
         </div>
 
         <div class="grid sm:grid-cols-2 gap-4 mt-4">
@@ -371,7 +384,17 @@ textarea.field-control { min-height: 84px; resize: vertical; }
         </div>
       </section>
 
-      <section class="bg-[#fffaf0] border border-[#0c3150]/15 rounded-xl p-5 shadow-sm mb-5">
+      <section class="flex flex-wrap items-center gap-x-4 gap-y-2 bg-[#fffaf0] border border-[#0c3150]/15 rounded-xl px-5 py-3 shadow-sm mb-5">
+        <label class="flex items-center gap-2 text-sm font-bold text-[#10191d] cursor-pointer bg-white px-3 py-1.5 rounded-md border border-[#0c3150]/15">
+          <input type="checkbox" id="hide-text" class="w-4 h-4 accent-[#1e8885]">
+          Hide all text
+        </label>
+        <p class="text-xs text-[#617078]">Untick to show this slide's text fields.</p>
+      </section>
+
+      <div id="rail-slot-editor"></div>
+
+      <section id="story-structure-panel" class="bg-[#fffaf0] border border-[#0c3150]/15 rounded-xl p-5 shadow-sm mb-5">
         <div class="flex items-center justify-between gap-4 mb-3">
           <h3 class="font-extrabold text-[#0c3150] text-[17px]">Story structure & readability</h3>
         </div>
@@ -412,16 +435,10 @@ textarea.field-control { min-height: 84px; resize: vertical; }
       </section>
 
       <form id="slide-form" class="space-y-5" onsubmit="event.preventDefault();">
-        <section class="bg-[#fffaf0] border border-[#0c3150]/15 rounded-xl p-5 shadow-sm">
+        <section id="words-panel" class="bg-[#fffaf0] border border-[#0c3150]/15 rounded-xl p-5 shadow-sm">
           <div class="flex items-center justify-between gap-4 mb-4">
             <h3 class="font-extrabold text-[#0c3150] text-[17px]">Words & direction</h3>
-            <div class="flex gap-3">
-              <button type="button" id="clear-text" class="text-xs font-bold text-[#b65045] hover:underline bg-[#f8dfd8] px-3 py-1.5 rounded-md">Clear all text</button>
-              <label class="flex items-center gap-2 text-sm font-bold text-[#10191d] cursor-pointer bg-white px-3 py-1.5 rounded-md border border-[#0c3150]/15">
-                <input type="checkbox" id="hide-text" class="w-4 h-4 accent-[#1e8885]">
-                Hide all text
-              </label>
-            </div>
+            <button type="button" id="clear-text" class="text-xs font-bold text-[#b65045] hover:underline bg-[#f8dfd8] px-3 py-1.5 rounded-md">Clear all text</button>
           </div>
           <div class="grid sm:grid-cols-2 gap-4">
             <div>
@@ -469,7 +486,7 @@ textarea.field-control { min-height: 84px; resize: vertical; }
     </section>
 
     <!-- RIGHT PANEL: Preview -->
-    <aside class="preview-area">
+    <aside id="preview-column" class="preview-area">
       <div class="flex items-end justify-between gap-4 mb-5">
         <div>
           <p class="text-[#1e8885] text-xs uppercase tracking-[0.18em] font-extrabold mb-2">Live composition</p>
@@ -931,11 +948,24 @@ railDropZone.addEventListener("drop", (e) => {
   setMessage(`Moved slide to position ${toIndex + 1}`);
 });
 
+// The text fields follow the open slide. The roomier layout needs every slide's text hidden, so the thumbs do not jump between columns while moving through slides with mixed settings.
+function applyTextLayout() {
+  const textHidden = !!slides[activeIndex].hideText;
+  document.getElementById("story-structure-panel").hidden = textHidden;
+  document.getElementById("words-panel").hidden = textHidden;
+
+  const allTextHidden = slides.every((slide) => slide.hideText);
+  document.querySelector(".workspace-grid").classList.toggle("text-collapsed", allTextHidden);
+  const railColumn = document.getElementById(allTextHidden ? "rail-slot-editor" : "preview-column");
+  if (railDropZone.parentElement !== railColumn) railColumn.appendChild(railDropZone);
+}
+
 function updateInterface() {
   normalizeNumbers();
   fillEditor();
   paintCard(slides[activeIndex]);
   renderRail();
+  applyTextLayout();
   
   document.getElementById("inline-previous").disabled = activeIndex === 0;
   document.getElementById("inline-next").disabled = activeIndex === slides.length - 1;
@@ -968,6 +998,7 @@ function syncFromEditor() {
 
   paintCard(slide);
   renderRail();
+  applyTextLayout();
 }
 
 document.getElementById('clear-text').addEventListener('click', () => {
