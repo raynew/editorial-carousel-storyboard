@@ -253,6 +253,7 @@ textarea.field-control { min-height: 84px; resize: vertical; }
 
 .thumb-item:active { cursor: grabbing; }
 .thumb-item:hover { transform: translateY(-2px); }
+.thumb-item.is-duplicate { border-color: #b65045; }
 .thumb-item.is-active { border-color: var(--teal); box-shadow: 0 0 0 3px rgba(30, 136, 133, 0.18); }
 .thumb-item.is-dragging { opacity: 0.4; transform: scale(0.95); }
 .thumb-item.drag-over { border-color: var(--gold); border-style: dashed; transform: scale(1.05); }
@@ -260,6 +261,7 @@ textarea.field-control { min-height: 84px; resize: vertical; }
 .thumb-photo { position: absolute; inset: 0; background-size: cover; background-position: center; }
 .thumb-copy { position: relative; z-index: 1; padding: 0.48rem; height: 100%; display: flex; flex-direction: column; justify-content: flex-end; pointer-events: none; }
 .thumb-title { font-family: "Playfair Display", serif; font-size: 0.68rem; font-weight: 700; line-height: 1.02; pointer-events: none; }
+.thumb-duplicate { position: absolute; top: 4px; left: 4px; right: 4px; z-index: 2; padding: 2px 0; border-radius: 4px; background: #b65045; color: #fffaf0; font-size: 0.58rem; font-weight: 800; text-align: center; pointer-events: none; }
 
 @media (max-width: 1023px) {
   .workspace-grid { grid-template-columns: 1fr !important; }
@@ -301,6 +303,14 @@ textarea.field-control { min-height: 84px; resize: vertical; }
           </label>
         </div>
         
+        <div class="mt-4">
+          <label class="action-button bg-[#c89834] text-[#10191d] hover:bg-[#b38629] cursor-pointer m-0">
+            📁 Upload photo folder
+            <input type="file" id="folder-upload" webkitdirectory multiple class="hidden">
+          </label>
+          <p class="mt-2 text-xs text-[#d9e3de]">One slide per photo, in file name order. Empty slides fill first.</p>
+        </div>
+
         <div class="mt-4">
           <label class="block text-sm font-bold mb-2 text-[#fffaf0]">Slide composition</label>
           <select id="layout-type" class="field-control bg-[#fffaf0] text-[#10191d] font-bold">
@@ -493,6 +503,7 @@ textarea.field-control { min-height: 84px; resize: vertical; }
           <h3 class="font-extrabold text-[#0c3150] text-[17px]">Slide sequence</h3>
           <p id="rail-count" class="text-xs font-bold uppercase tracking-[0.12em] text-[#617078]">6 slides</p>
         </div>
+        <p id="duplicate-notice" class="hidden mb-3 rounded-md bg-[#f8dfd8] px-3 py-2 text-xs font-bold text-[#9d382f]"></p>
         <div id="thumbnail-rail" class="flex flex-wrap gap-3 pb-3"></div>
       </section>
     </aside>
@@ -691,10 +702,46 @@ function enablePhotoDragging(element, second = false) {
 enablePhotoDragging(document.getElementById("photo-surface"));
 enablePhotoDragging(document.getElementById("photo-surface-2"), true);
 
+const COPY_SUFFIX = /(\s*[-_]?\s*copy(\s*\d+)?|\s*\(\d+\))+$/;
+
+// Groups slides whose photo file names match, ignoring case, extension, and copy markers like "IMG_1 (1)" or "IMG_1 - Copy".
+// A bare "(1)" only counts when the unnumbered name is also present, so a batch-renamed "photo (1)", "photo (2)" is not flagged.
+function findDuplicatePhotos() {
+  const photos = [];
+  slides.forEach((slide, index) => {
+    [slide.imageUrl && slide.imageName, slide.imageUrl2 && slide.imageName2].forEach((name) => {
+      if (name) photos.push({ name, index, base: name.toLowerCase().replace(/\.[^.]+$/, "") });
+    });
+  });
+  const bases = new Set(photos.map((photo) => photo.base));
+  const groups = new Map();
+  photos.forEach((photo) => {
+    const stripped = photo.base.replace(COPY_SUFFIX, "");
+    const isNamedCopy = /copy(\s*\d+)?(\s*\(\d+\))?$/.test(photo.base);
+    const key = isNamedCopy || bases.has(stripped) ? stripped : photo.base;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(photo);
+  });
+  return [...groups.values()].filter((group) => group.length > 1);
+}
+
+function renderDuplicateNotice(duplicates) {
+  const notice = document.getElementById("duplicate-notice");
+  notice.classList.toggle("hidden", duplicates.length === 0);
+  notice.textContent = duplicates.length === 0 ? "" : "Possible duplicates: " + duplicates.map((group) => {
+    const slideNumbers = [...new Set(group.map((photo) => photo.index + 1))].join(", ");
+    const names = [...new Set(group.map((photo) => photo.name))].join(" / ");
+    return `${names} (slides ${slideNumbers})`;
+  }).join("; ");
+}
+
 function renderRail() {
   const rail = document.getElementById("thumbnail-rail");
   rail.innerHTML = "";
-  
+
+  const duplicates = findDuplicatePhotos();
+  renderDuplicateNotice(duplicates);
+
   slides.forEach((slide, index) => {
     const item = document.createElement("button");
     item.type = "button";
@@ -710,7 +757,14 @@ function renderRail() {
                       <span class="thumb-copy" style="background: rgba(255,250,240,0.85); color: #10191d;">
                         <span class="thumb-title">${thumbText}</span>
                       </span>`;
-                      
+
+    const duplicateNames = duplicates.flat().filter((photo) => photo.index === index).map((photo) => photo.name);
+    if (duplicateNames.length > 0) {
+      item.classList.add("is-duplicate");
+      item.title = "Possible duplicate: " + duplicateNames.join(", ");
+      item.insertAdjacentHTML("beforeend", `<span class="thumb-duplicate">Duplicate</span>`);
+    }
+
     item.addEventListener("click", () => {
       activeIndex = index;
       updateInterface();
@@ -837,6 +891,37 @@ document.getElementById('image-upload-2').addEventListener('change', async funct
   }
 });
 
+function createBlankSlide() {
+  return {
+    stage: "", number: "00 / 00",
+    headline: "", body: "",
+    caption: "", cta: "", imageUrl: "", imageUrl2: "", imageFit: "cover", focal: "center", focal2: "center", layout: "photo-first", backdrop: "none", contrast: "standard", hideText: true, hideBorder: false, isItalic: false
+  };
+}
+
+// Folder upload: one slide per photo in file name order, filling empty slides before adding new ones
+document.getElementById('folder-upload').addEventListener('change', async function(e) {
+  const files = [...e.target.files]
+    .filter((file) => file.type.startsWith("image/"))
+    .sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: "base" }));
+  e.target.value = "";
+  if (files.length === 0) return setMessage("No photos found in that folder.");
+
+  setMessage(`Loading ${files.length} photos...`);
+  let slideIndex = 0;
+  let firstFilled = -1;
+  for (const file of files) {
+    while (slideIndex < slides.length && slides[slideIndex].imageUrl) slideIndex++;
+    if (slideIndex === slides.length) slides.push(createBlankSlide());
+    if (firstFilled === -1) firstFilled = slideIndex;
+    slides[slideIndex].imageName = file.name;
+    slides[slideIndex].imageUrl = await fileToDataUrl(file);
+  }
+  activeIndex = firstFilled;
+  updateInterface();
+  setMessage(`Loaded ${files.length} photos.`);
+});
+
 // SELF-CONTAINED PROJECT BACKUP (Embeds photos into JSON)
 document.getElementById('export-project').addEventListener('click', () => {
   const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(slides, null, 2));
@@ -893,11 +978,7 @@ document.getElementById("download-selected-slide").addEventListener("click", asy
 });
 
 document.getElementById("add-slide").addEventListener("click", () => {
-  slides.push({
-    stage: "", number: "00 / 00",
-    headline: "", body: "",
-    caption: "", cta: "", imageUrl: "", imageUrl2: "", imageFit: "cover", focal: "center", focal2: "center", layout: "photo-first", backdrop: "none", contrast: "standard", hideText: true, hideBorder: false, isItalic: false
-  });
+  slides.push(createBlankSlide());
   activeIndex = slides.length - 1;
   updateInterface();
 });
