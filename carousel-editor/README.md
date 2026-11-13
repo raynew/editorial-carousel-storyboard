@@ -34,6 +34,12 @@ Each item in the `slides` array is one card:
 | `hideText` | Hide all type on the card |
 | `hideBorder` | Hide the inner gold frame |
 | `isItalic` | Italicize headline and body |
+| `font` | Headline and body font key from `FONTS`: `playfair` (default), `franklin`, or a handwriting face: `caveat`, `dancing`, `homemade`, `kalam`, `marker`, `shadows` |
+| `frame` | Polaroid photo frame: `none` (default), `white`, `black` |
+| `borderColor` | Inner border line colour: `gold` (default), `cream`, `white`, `black`, `teal`, `blue` |
+| `textOffsets` | Where each text piece was dragged, e.g. `{ "headline": { "x": 0, "y": 12.5 } }`, as % of card width (x) and height (y) |
+
+Older backups without these fields open with the defaults.
 
 ## Functions
 
@@ -73,6 +79,16 @@ Tick a thumb's checkbox or Ctrl/⌘-click to select several slides, Shift-click 
 
 Outside text fields and dropdowns: arrow keys move between slides, Shift+arrow extends the selection, Delete or Backspace removes the selected slides (with confirmation) or the open slide (without), and Esc clears the selection.
 
+### Fonts, frames and border colours
+
+**Headline & body font** (Story structure panel) switches the headline and body between two editorial faces and six handwriting faces. The small labels (eyebrow, number, caption, CTA) stay in Libre Franklin. Each face in `FONTS` has its own size scale and spacing so they look roughly the same size. The export waits for the slide's font to download before drawing.
+
+**Photo frame** (Photography panel) puts the photos on a white or black polaroid mat: even margins on three sides and a deeper one at the bottom. `getPhotoRects(slide)` gives the photo areas for every layout, and both the preview and the export use it. **Border colour** sets the colour of the thin inner border line.
+
+### Moving text
+
+Drag any text piece on the preview to move it. It can't be dragged off the card. Double-click a piece, or use **Reset text positions**, to put it back. Offsets are stored per slide in `textOffsets` and applied to the export.
+
 ### `findDuplicatePhotos()`
 
 Scans the photo file names on all slides and groups possible duplicates, ignoring case, extension, and copy markers (`IMG_1 (1).jpg`, `IMG_1 - Copy.jpg`). A bare `(1)` only counts when the unnumbered name is also present. `renderRail()` badges the matching thumbs and lists the groups above the rail. It only compares names, so photos that differ but share a name are flagged too, and nothing is removed automatically.
@@ -104,9 +120,9 @@ Draws a photo into a clipped rectangle on the export canvas.
 - **contain**: scale to fit, centre, fill leftover with paper colour `#fffaf0`.
 - **cover**: scale to fill; `focal` (`top` / `bottom` / `center`) chooses the crop when the image is taller than the box.
 
-### `wrapText(ctx, text, x, y, maxWidth, lineHeight)`
+### `measureSlideText(slide, targetW)` / `drawTextLines(ctx, lines)`
 
-Draws multi-line text on the canvas. Splits on newlines first, then wraps words to `maxWidth`. Used for headline and body in the PNG export.
+The export draws text from the preview's own layout. `measureSlideText` paints the slide onto a hidden 1080px copy of the preview card, waits for its fonts, then reads every line of text back: where the browser broke the lines, where each line sits (drag offsets included), and its font, letter spacing, colour, opacity and shadow, scaled to the export size. `drawTextLines` draws those lines on the canvas. Text on the card is sized in `cqw` (a share of the card's width), so the preview is the export in miniature and the PNG comes out the same at any window size.
 
 ## UI actions (event handlers)
 
@@ -128,7 +144,7 @@ These are not named functions; they are listeners on buttons and inputs.
 
 ### `drawSlideOnCanvas(ctx, slide, targetW, targetH)`
 
-Paints one slide onto an export canvas: photos, layout, overlay, border, and type. Shared by download, share, and publish.
+Paints one slide onto an export canvas: frame, photos, layout, overlay, border, and type. Shared by download, share, and publish.
 
 ### `renderSlidesToFiles({ mimeType, quality, extension })`
 
@@ -158,7 +174,7 @@ POSTs a slide as multipart `file` to your host. Expects `{ "url": "https://..." 
 
 Read and write Instagram user ID, token, upload URL, and Graph version in `localStorage` (`carousel-ig-settings`). Tokens never leave this browser unless you click publish.
 
-Export recreates layout (photo-first, text-first, stacked), overlay, border, type colour, italics, wrapping, and captions so the PNG matches the on-screen composition as closely as canvas text allows.
+Export recreates layout (photo-first, text-first, stacked), photo frame, overlay and border, and draws the text exactly as the preview lays it out (see `measureSlideText`).
 
 ## Instagram: what is and is not possible
 

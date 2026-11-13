@@ -7,7 +7,7 @@
 <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%2310191d%22 stroke-width=%222%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22><path d=%22M12 22s8-4 8-10V5a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v10c0 6 8 10 8 10z%22/><circle cx=%2212%22 cy=%2213%22 r=%223%22/></svg>" />
 <script src="https://cdn.tailwindcss.com/3.4.17"></script>
 <script src="https://cdn.jsdelivr.net/npm/lucide@0.263.0/dist/umd/lucide.min.js"></script>
-<link href="https://fonts.googleapis.com/css2?family=Libre+Franklin:wght@400;500;600;700;800;900&family=Playfair+Display:ital,wght@0,400;0,600;0,700;0,800;1,400;1,600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Libre+Franklin:wght@400;500;600;700;800;900&family=Playfair+Display:ital,wght@0,400;0,600;0,700;0,800;1,400;1,600&family=Caveat:wght@400;500;700&family=Dancing+Script:wght@400;700&family=Homemade+Apple&family=Kalam:wght@400;700&family=Permanent+Marker&family=Shadows+Into+Light&display=swap" rel="stylesheet">
 <style>
 :root {
   --cream: #f7f0df;
@@ -78,17 +78,22 @@ textarea.field-control { min-height: 84px; resize: vertical; }
   aspect-ratio: 4 / 5;
   overflow: hidden;
   border-radius: 3px;
-  background: var(--paper);
+  background: var(--frame-bg, var(--paper));
   box-shadow: 0 22px 52px rgba(7, 25, 38, 0.24);
   isolation: isolate;
+  /* Everything on the card is sized in cqw (a share of the card's width), so the preview is the export in miniature at any window size.
+     --u is one "card rem": 16px when the card is 498px wide, its width in a 1440px window. */
+  container-type: inline-size;
+  --u: 3.2129cqw;
 }
 
 /* Border controls */
 .carousel-card::after {
   content: "";
   position: absolute;
-  inset: 12px;
-  border: 1px solid rgba(200, 152, 52, 0.55);
+  /* Matches the export's 60px inset on a 2160 x 2700 canvas */
+  inset: 2.2222% 2.7778%;
+  border: 1px solid var(--border-color, rgba(200, 152, 52, 0.55));
   pointer-events: none;
   z-index: 3;
 }
@@ -139,7 +144,7 @@ textarea.field-control { min-height: 84px; resize: vertical; }
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  padding: clamp(1.3rem, 4.4vw, 2.4rem);
+  padding: calc(2.4 * var(--u));
   pointer-events: none;
 }
 
@@ -147,39 +152,39 @@ textarea.field-control { min-height: 84px; resize: vertical; }
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 1rem;
-  min-height: 1.5rem;
-  margin-bottom: 0.55rem;
+  gap: var(--u);
+  min-height: calc(1.5 * var(--u));
+  margin-bottom: calc(0.55 * var(--u));
 }
 
 .card-footer-row {
   display: flex;
   align-items: flex-end;
   justify-content: space-between;
-  gap: 0.75rem;
-  min-height: 1.5rem;
+  gap: calc(0.75 * var(--u));
+  min-height: calc(1.5 * var(--u));
 }
 
 .card-headline {
-  margin: 0 0 1rem 0;
+  margin: 0 0 var(--u) 0;
   min-height: 2.88em; 
   max-width: 92%;
-  font-family: "Playfair Display", serif;
-  font-size: clamp(1.85rem, 6.5vw, 3.6rem);
-  font-weight: 700;
-  line-height: 0.96;
-  letter-spacing: -0.05em;
+  font-family: var(--text-font, "Playfair Display", serif);
+  font-size: calc(3.6 * var(--u) * var(--font-scale, 1));
+  font-weight: var(--head-weight, 700);
+  line-height: var(--head-line, 0.96);
+  letter-spacing: var(--head-tracking, -0.05em);
 }
 
 .card-body {
   margin: 0;
   min-height: 4.65em; 
   max-width: 90%;
-  font-family: "Playfair Display", serif; 
-  font-size: clamp(0.95rem, 2.5vw, 1.25rem);
-  font-weight: 400;
-  line-height: 1.5;
-  letter-spacing: 0.02em;
+  font-family: var(--text-font, "Playfair Display", serif);
+  font-size: calc(1.25 * var(--u) * var(--font-scale, 1));
+  font-weight: var(--body-weight, 400);
+  line-height: var(--body-line, 1.5);
+  letter-spacing: var(--body-tracking, 0.02em);
   opacity: 0.95;
   white-space: pre-line;
 }
@@ -192,47 +197,57 @@ textarea.field-control { min-height: 84px; resize: vertical; }
 
 .hide-text { display: none !important; }
 
+/* Text pieces can be dragged around the card. Empty ones stay click-through so they never block photo dragging. */
+.text-drag:not(:empty) { pointer-events: auto; cursor: move; touch-action: none; user-select: none; }
+.card-cta { max-width: 45%; text-align: right; font-size: calc(0.75 * var(--u)); line-height: 1.3333; font-weight: 800; text-transform: uppercase; letter-spacing: 0.1em; }
+
+/* The hidden copy of the card the export measures text from */
+.export-measure { position: fixed !important; left: -20000px; top: 0; width: 1080px !important; max-width: none !important; pointer-events: none; }
+.export-measure .photo-surface, .export-measure .photo-surface-2 { display: none !important; }
+
+.text-drag:not(:empty):hover, .text-drag.is-dragging { outline: 1px dashed currentColor; outline-offset: 4px; }
+
 .overlay-none { background: transparent; }
 .overlay-dark { background: linear-gradient(180deg, rgba(7, 25, 38, 0.3) 0%, rgba(7, 25, 38, 0.85) 100%); color: var(--paper); }
 .overlay-teal { background: linear-gradient(180deg, rgba(30, 136, 133, 0.3) 0%, rgba(30, 136, 133, 0.85) 100%); color: var(--paper); }
 
 .contrast-standard h3, .contrast-standard p, .contrast-standard span {
   color: var(--ink) !important;
-  text-shadow: 0px 2px 4px rgba(255,255,255,0.4); 
+  text-shadow: 0 0.4cqw 0.8cqw rgba(255,255,255,0.4);
 }
 .contrast-cream h3, .contrast-cream p, .contrast-cream span {
   color: var(--paper) !important;
-  text-shadow: 0px 2px 6px rgba(0,0,0,0.7);
+  text-shadow: 0 0.4cqw 1.2cqw rgba(0,0,0,0.7);
 }
 .contrast-gold h3, .contrast-gold p, .contrast-gold span {
   color: var(--gold) !important;
-  text-shadow: 0px 2px 4px rgba(0,0,0,0.6);
+  text-shadow: 0 0.4cqw 0.8cqw rgba(0,0,0,0.6);
 }
 .contrast-teal h3, .contrast-teal p, .contrast-teal span {
   color: var(--teal) !important;
-  text-shadow: 0px 2px 4px rgba(255,255,255,0.6);
+  text-shadow: 0 0.4cqw 0.8cqw rgba(255,255,255,0.6);
 }
 .contrast-blue h3, .contrast-blue p, .contrast-blue span {
   color: var(--blue) !important;
-  text-shadow: 0px 2px 4px rgba(255,255,255,0.6);
+  text-shadow: 0 0.4cqw 0.8cqw rgba(255,255,255,0.6);
 }
 
 .card-kicker {
-  font-size: clamp(0.58rem, 1.7vw, 0.78rem);
+  font-size: calc(0.78 * var(--u));
   text-transform: uppercase;
   font-weight: 800;
   letter-spacing: 0.17em;
 }
 
 .card-number {
-  font-size: clamp(0.6rem, 1.7vw, 0.78rem);
+  font-size: calc(0.78 * var(--u));
   font-weight: 800;
   letter-spacing: 0.13em;
 }
 
 .card-caption {
   max-width: 78%;
-  font-size: clamp(0.57rem, 1.55vw, 0.72rem);
+  font-size: calc(0.72 * var(--u));
   line-height: 1.45;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -373,6 +388,28 @@ textarea.field-control { min-height: 84px; resize: vertical; }
           </div>
         </div>
 
+        <div class="grid sm:grid-cols-2 gap-4 mt-4">
+          <div>
+            <label class="block text-sm font-bold mb-2 text-[#fffaf0]" for="photo-frame">Photo frame</label>
+            <select id="photo-frame" class="field-control bg-[#fffaf0] text-[#10191d]">
+              <option value="none">None (edge to edge)</option>
+              <option value="white">White polaroid</option>
+              <option value="black">Black polaroid</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-sm font-bold mb-2 text-[#fffaf0]" for="border-color">Border colour</label>
+            <select id="border-color" class="field-control bg-[#fffaf0] text-[#10191d]">
+              <option value="gold">Gold</option>
+              <option value="cream">Cream</option>
+              <option value="white">White</option>
+              <option value="black">Black</option>
+              <option value="teal">Teal</option>
+              <option value="blue">Blue</option>
+            </select>
+          </div>
+        </div>
+
         <div id="focal-2-wrapper" class="mt-4" style="display: none;">
           <label class="block text-sm font-bold mb-2 text-[#fffaf0]">Focal point 2 (Bottom Image)</label>
           <select id="focal-point-2" class="field-control bg-[#fffaf0] text-[#10191d]">
@@ -419,6 +456,15 @@ textarea.field-control { min-height: 84px; resize: vertical; }
             </select>
           </div>
         </div>
+
+        <div class="mt-4 grid sm:grid-cols-[minmax(0,1fr)_auto] gap-4 items-end">
+          <div>
+            <label class="block text-sm font-bold text-[#10191d] mb-2" for="text-font">Headline & body font</label>
+            <select id="text-font" class="field-control"></select>
+          </div>
+          <button type="button" id="reset-text-positions" class="action-button border border-[#0c3150]/30 text-[#0c3150] bg-white hover:bg-[#f7f0df]">Reset text positions</button>
+        </div>
+        <p class="mt-2 text-xs text-[#617078]">Drag any text on the preview to move it. Double-click a piece to put it back.</p>
 
         <div class="mt-4 flex items-center justify-between">
           <div>
@@ -509,15 +555,15 @@ textarea.field-control { min-height: 84px; resize: vertical; }
           <div id="card-content-wrapper" class="card-content">
             <div>
               <div class="card-meta-row">
-                <span id="card-stage" class="card-kicker">Hook</span>
-                <span id="card-number" class="card-number">01 / 06</span>
+                <span id="card-stage" class="card-kicker text-drag" data-text-key="stage">Hook</span>
+                <span id="card-number" class="card-number text-drag" data-text-key="number">01 / 06</span>
               </div>
-              <h3 id="card-headline" class="card-headline">Start with the moment that changed the question.</h3>
-              <p id="card-body" class="card-body">A clear story does not begin with every detail.</p>
+              <h3 id="card-headline" class="card-headline text-drag" data-text-key="headline">Start with the moment that changed the question.</h3>
+              <p id="card-body" class="card-body text-drag" data-text-key="body">A clear story does not begin with every detail.</p>
             </div>
             <div class="card-footer-row">
-              <p id="card-caption" class="card-caption">Editorial story system</p>
-              <span id="card-cta" class="inline-flex max-w-[45%] text-right text-xs font-extrabold uppercase tracking-[0.1em]">Swipe →</span>
+              <p id="card-caption" class="card-caption text-drag" data-text-key="caption">Editorial story system</p>
+              <span id="card-cta" data-text-key="cta" class="card-cta text-drag inline-flex">Swipe →</span>
             </div>
           </div>
         </article>
@@ -548,9 +594,73 @@ textarea.field-control { min-height: 84px; resize: vertical; }
 
 <script>
 const slides = [
-  { stage: "", number: "01 / 02", headline: "", body: "", caption: "", cta: "", imageUrl: "", imageUrl2: "", imageFit: "cover", focal: "center", focal2: "center", layout: "photo-first", backdrop: "none", contrast: "standard", hideText: true, hideBorder: false, isItalic: false },
-  { stage: "", number: "02 / 02", headline: "", body: "", caption: "", cta: "", imageUrl: "", imageUrl2: "", imageFit: "cover", focal: "center", focal2: "center", layout: "photo-first", backdrop: "none", contrast: "standard", hideText: true, hideBorder: false, isItalic: false },
+  { stage: "", number: "01 / 02", headline: "", body: "", caption: "", cta: "", imageUrl: "", imageUrl2: "", imageFit: "cover", focal: "center", focal2: "center", layout: "photo-first", backdrop: "none", contrast: "standard", hideText: true, hideBorder: false, isItalic: false, font: "playfair", frame: "none", borderColor: "gold", textOffsets: {} },
+  { stage: "", number: "02 / 02", headline: "", body: "", caption: "", cta: "", imageUrl: "", imageUrl2: "", imageFit: "cover", focal: "center", focal2: "center", layout: "photo-first", backdrop: "none", contrast: "standard", hideText: true, hideBorder: false, isItalic: false, font: "playfair", frame: "none", borderColor: "gold", textOffsets: {} },
 ];
+
+// Headline and body type. Scale and spacing even out how big each face looks at the same size.
+const FONTS = {
+  playfair: { label: "Playfair Display (editorial serif)", group: "Editorial", family: '"Playfair Display", serif', head: 700, body: 400, scale: 1, headLine: 0.96, headTracking: -0.05, bodyLine: 1.5, bodyTracking: 0.02 },
+  franklin: { label: "Libre Franklin (clean sans)", group: "Editorial", family: '"Libre Franklin", sans-serif', head: 800, body: 400, scale: 0.88, headLine: 1, headTracking: -0.03, bodyLine: 1.5, bodyTracking: 0.01 },
+  caveat: { label: "Caveat (casual marker)", group: "Handwriting", family: '"Caveat", cursive', head: 700, body: 500, scale: 1.3, headLine: 0.95, headTracking: 0, bodyLine: 1.3, bodyTracking: 0 },
+  dancing: { label: "Dancing Script (flowing script)", group: "Handwriting", family: '"Dancing Script", cursive', head: 700, body: 400, scale: 1.15, headLine: 1, headTracking: 0, bodyLine: 1.35, bodyTracking: 0 },
+  homemade: { label: "Homemade Apple (pen on paper)", group: "Handwriting", family: '"Homemade Apple", cursive', head: 400, body: 400, scale: 0.72, headLine: 1.35, headTracking: 0, bodyLine: 1.7, bodyTracking: 0 },
+  kalam: { label: "Kalam (neat print)", group: "Handwriting", family: '"Kalam", cursive', head: 700, body: 400, scale: 0.95, headLine: 1.05, headTracking: -0.01, bodyLine: 1.4, bodyTracking: 0 },
+  marker: { label: "Permanent Marker (bold marker)", group: "Handwriting", family: '"Permanent Marker", cursive', head: 400, body: 400, scale: 0.9, headLine: 1.05, headTracking: 0, bodyLine: 1.4, bodyTracking: 0.01 },
+  shadows: { label: "Shadows Into Light (loose pencil)", group: "Handwriting", family: '"Shadows Into Light", cursive', head: 400, body: 400, scale: 1.15, headLine: 1, headTracking: 0, bodyLine: 1.35, bodyTracking: 0.02 }
+};
+
+const BORDER_COLORS = {
+  gold: "rgba(200, 152, 52, 0.55)",
+  cream: "rgba(255, 250, 240, 0.85)",
+  white: "rgba(255, 255, 255, 0.95)",
+  black: "rgba(16, 25, 29, 0.85)",
+  teal: "rgba(30, 136, 133, 0.8)",
+  blue: "rgba(12, 49, 80, 0.8)"
+};
+
+const FRAME_COLORS = { white: "#fbf9f4", black: "#151515" };
+
+function getFont(slide) { return FONTS[slide.font] || FONTS.playfair; }
+
+// Where each photo sits, as fractions of the card. A polaroid frame insets the photos and leaves a deeper margin at the bottom.
+function getPhotoRects(slide) {
+  const framed = !!FRAME_COLORS[slide.frame];
+  const side = framed ? 0.05 : 0;   // of the width
+  const top = framed ? 0.04 : 0;    // of the height, the same distance as the sides on a 4:5 card
+  const bottom = framed ? 0.16 : 0;
+  const width = 1 - side * 2;
+  if (slide.layout === "stacked") {
+    const gap = framed ? 0.015 : 0;
+    const height = (1 - top - bottom - gap) / 2;
+    return [{ x: side, y: top, w: width, h: height }, { x: side, y: top + height + gap, w: width, h: height }];
+  }
+  if (slide.layout === "text-first") {
+    const y = framed ? 0.5 : 0.6;
+    return [{ x: side, y, w: width, h: 1 - y - bottom }];
+  }
+  return [{ x: side, y: top, w: width, h: 1 - top - bottom }];
+}
+
+const TEXT_KEYS = ["stage", "number", "headline", "body", "caption", "cta"];
+
+// Offsets are stored as a percentage of the card's width (x) and height (y), so they match the export at any size
+function getTextOffset(slide, key) {
+  const offset = slide.textOffsets?.[key];
+  const x = Number(offset?.x);
+  const y = Number(offset?.y);
+  return { x: Number.isFinite(x) ? x : 0, y: Number.isFinite(y) ? y : 0 };
+}
+
+// Always a fresh object, because Duplicate makes a shallow copy and the two slides must not share offsets
+function setTextOffset(slide, key, offset) {
+  slide.textOffsets = { ...(slide.textOffsets || {}), [key]: { x: Math.round(offset.x * 100) / 100, y: Math.round(offset.y * 100) / 100 } };
+}
+
+function textTransform(offset) {
+  // The card is 4:5, so 1% of its height is 1.25% of its width
+  return offset.x || offset.y ? `translate(${offset.x}cqw, ${offset.y * 1.25}cqw)` : "";
+}
 
 let activeIndex = 0;
 const selectedSlides = new Set();
@@ -571,8 +681,22 @@ const fields = {
   contrast: document.getElementById("text-contrast"),
   hideText: document.getElementById("hide-text"),
   hideBorder: document.getElementById("remove-border"),
-  isItalic: document.getElementById("italic-toggle")
+  isItalic: document.getElementById("italic-toggle"),
+  font: document.getElementById("text-font"),
+  frame: document.getElementById("photo-frame"),
+  borderColor: document.getElementById("border-color")
 };
+
+// Fill the font menu, grouped, from FONTS
+Object.entries(FONTS).reduce((groups, [key, font]) => {
+  if (!groups[font.group]) {
+    groups[font.group] = document.createElement("optgroup");
+    groups[font.group].label = font.group;
+    fields.font.appendChild(groups[font.group]);
+  }
+  groups[font.group].appendChild(new Option(font.label, key));
+  return groups;
+}, {});
 
 function safeText(value) { return String(value || "").trim(); }
 
@@ -650,6 +774,9 @@ function fillEditor() {
   fields.hideText.checked = !!slide.hideText;
   fields.hideBorder.checked = !!slide.hideBorder;
   fields.isItalic.checked = !!slide.isItalic;
+  fields.font.value = FONTS[slide.font] ? slide.font : "playfair";
+  fields.frame.value = FRAME_COLORS[slide.frame] ? slide.frame : "none";
+  fields.borderColor.value = BORDER_COLORS[slide.borderColor] ? slide.borderColor : "gold";
   
   updatePhotoControls(slide);
   
@@ -658,11 +785,10 @@ function fillEditor() {
   document.getElementById("slide-position").textContent = "Slide " + (activeIndex + 1) + " of " + slides.length;
 }
 
-function paintCard(slide) {
-  const card = document.getElementById("carousel-card");
-  const photo = document.getElementById("photo-surface");
-  const photo2 = document.getElementById("photo-surface-2");
-  const content = document.getElementById("card-content-wrapper");
+function paintCard(slide, card = document.getElementById("carousel-card")) {
+  const photo = card.querySelector(".photo-surface");
+  const photo2 = card.querySelector(".photo-surface-2");
+  const content = card.querySelector(".card-content");
   
   card.className = "carousel-card layout-" + slide.layout;
   content.className = "card-content overlay-" + slide.backdrop + " contrast-" + slide.contrast;
@@ -675,6 +801,24 @@ function paintCard(slide) {
     card.classList.remove("is-italicized");
   }
   
+  const font = getFont(slide);
+  card.style.setProperty("--text-font", font.family);
+  card.style.setProperty("--head-weight", font.head);
+  card.style.setProperty("--body-weight", font.body);
+  card.style.setProperty("--font-scale", font.scale);
+  card.style.setProperty("--head-line", font.headLine);
+  card.style.setProperty("--head-tracking", font.headTracking + "em");
+  card.style.setProperty("--body-line", font.bodyLine);
+  card.style.setProperty("--body-tracking", font.bodyTracking + "em");
+  card.style.setProperty("--border-color", BORDER_COLORS[slide.borderColor] || BORDER_COLORS.gold);
+  card.style.setProperty("--frame-bg", FRAME_COLORS[slide.frame] || "var(--paper)");
+
+  const rects = getPhotoRects(slide);
+  [photo, photo2].forEach((surface, i) => {
+    const rect = rects[i] || rects[0];
+    Object.assign(surface.style, { top: rect.y * 100 + "%", left: rect.x * 100 + "%", width: rect.w * 100 + "%", height: rect.h * 100 + "%", right: "auto", bottom: "auto" });
+  });
+
   photo.className = "photo-surface fit-" + slide.imageFit;
   const photoPosition = getPhotoPosition(slide);
   photo.style.cursor = slide.imageUrl ? "grab" : "default";
@@ -695,13 +839,65 @@ function paintCard(slide) {
     photo2.style.backgroundImage = "linear-gradient(180deg, rgba(30,136,133,0.10), rgba(30,136,133,0.4))";
   }
 
-  document.getElementById("card-stage").textContent = slide.stage;
-  document.getElementById("card-number").textContent = slide.number;
-  document.getElementById("card-headline").textContent = slide.headline;
-  document.getElementById("card-body").textContent = slide.body; 
-  document.getElementById("card-caption").textContent = slide.caption;
-  document.getElementById("card-cta").textContent = slide.cta;
+  TEXT_KEYS.forEach((key) => { content.querySelector(`[data-text-key="${key}"]`).textContent = slide[key] || ""; });
+
+  TEXT_KEYS.forEach((key) => {
+    const element = content.querySelector(`[data-text-key="${key}"]`);
+    element.style.transform = textTransform(getTextOffset(slide, key));
+    element.title = element.textContent ? "Drag to move. Double-click to put it back." : "";
+  });
 }
+
+// Drag any text piece around the card. It stays inside the card, and double-clicking puts it back.
+function enableTextDragging(element) {
+  const key = element.dataset.textKey;
+  let drag = null;
+  element.addEventListener("pointerdown", (event) => {
+    if (event.button !== 0 || !element.textContent) return;
+    const card = document.getElementById("carousel-card").getBoundingClientRect();
+    const bounds = element.getBoundingClientRect();
+    drag = {
+      pointerId: event.pointerId, x: event.clientX, y: event.clientY, card,
+      offset: getTextOffset(slides[activeIndex], key),
+      // How far the piece can travel before an edge leaves the card
+      minX: card.left - bounds.left, maxX: card.right - bounds.right,
+      minY: card.top - bounds.top, maxY: card.bottom - bounds.bottom
+    };
+    element.setPointerCapture(event.pointerId);
+    element.classList.add("is-dragging");
+    event.preventDefault();
+    event.stopPropagation();
+  });
+  element.addEventListener("pointermove", (event) => {
+    if (!drag || event.pointerId !== drag.pointerId) return;
+    const limit = (value, min, max) => min > max ? 0 : Math.max(min, Math.min(max, value));
+    const dx = limit(event.clientX - drag.x, drag.minX, drag.maxX);
+    const dy = limit(event.clientY - drag.y, drag.minY, drag.maxY);
+    const slide = slides[activeIndex];
+    setTextOffset(slide, key, { x: drag.offset.x + dx / drag.card.width * 100, y: drag.offset.y + dy / drag.card.height * 100 });
+    element.style.transform = textTransform(getTextOffset(slide, key));
+  });
+  const finishDrag = (event) => {
+    if (!drag || event.pointerId !== drag.pointerId) return;
+    drag = null;
+    element.classList.remove("is-dragging");
+  };
+  element.addEventListener("pointerup", finishDrag);
+  element.addEventListener("pointercancel", finishDrag);
+  element.addEventListener("dblclick", () => {
+    const slide = slides[activeIndex];
+    setTextOffset(slide, key, { x: 0, y: 0 });
+    paintCard(slide);
+  });
+}
+
+document.querySelectorAll("#carousel-card .text-drag").forEach(enableTextDragging);
+
+document.getElementById("reset-text-positions").addEventListener("click", () => {
+  slides[activeIndex].textOffsets = {};
+  paintCard(slides[activeIndex]);
+  setMessage("Text moved back to its standard positions on this slide.");
+});
 
 function enablePhotoDragging(element, second = false) {
   let drag = null;
@@ -794,7 +990,7 @@ function renderRail() {
     
     item.innerHTML = `<span class="thumb-photo fit-${slide.imageFit}" style="${bgStyle}"></span>
                       <span class="thumb-copy" style="background: rgba(255,250,240,0.85); color: #10191d;">
-                        <span class="thumb-title">${thumbText}</span>
+                        <span class="thumb-title" style="font-family: ${getFont(slide).family.replace(/"/g, "'")};">${thumbText}</span>
                       </span>`;
 
     const duplicateNames = duplicates.flat().filter((photo) => photo.index === index).map((photo) => photo.name);
@@ -993,6 +1189,9 @@ function syncFromEditor() {
   slide.hideText = fields.hideText.checked;
   slide.hideBorder = fields.hideBorder.checked;
   slide.isItalic = fields.isItalic.checked;
+  slide.font = fields.font.value;
+  slide.frame = fields.frame.value;
+  slide.borderColor = fields.borderColor.value;
   
   updatePhotoControls(slide);
 
@@ -1054,7 +1253,8 @@ function createBlankSlide() {
   return {
     stage: "", number: "00 / 00",
     headline: "", body: "",
-    caption: "", cta: "", imageUrl: "", imageUrl2: "", imageFit: "cover", focal: "center", focal2: "center", layout: "photo-first", backdrop: "none", contrast: "standard", hideText: true, hideBorder: false, isItalic: false
+    caption: "", cta: "", imageUrl: "", imageUrl2: "", imageFit: "cover", focal: "center", focal2: "center", layout: "photo-first", backdrop: "none", contrast: "standard", hideText: true, hideBorder: false, isItalic: false,
+    font: "playfair", frame: "none", borderColor: "gold", textOffsets: {}
   };
 }
 
@@ -1265,34 +1465,28 @@ function canvasToBlob(canvas, mimeType, quality) {
 
 async function drawSlideOnCanvas(ctx, slide, targetW, targetH) {
   ctx.clearRect(0, 0, targetW, targetH);
-  ctx.fillStyle = "#fffaf0";
+  ctx.fillStyle = FRAME_COLORS[slide.frame] || "#fffaf0";
   ctx.fillRect(0, 0, targetW, targetH);
 
   const img1 = await loadImage(slide.imageUrl);
   const img2 = await loadImage(slide.imageUrl2);
+  const rects = getPhotoRects(slide).map((r) => ({ x: r.x * targetW, y: r.y * targetH, w: r.w * targetW, h: r.h * targetH }));
 
   if (slide.layout === "stacked") {
-    if (img1) {
-      drawNativeImage(ctx, img1, 0, 0, targetW, targetH * 0.5, slide.imageFit, getPhotoPosition(slide));
-    } else {
-      ctx.fillStyle = "rgba(5,24,36,0.15)";
-      ctx.fillRect(0, 0, targetW, targetH * 0.5);
-    }
-    if (img2) {
-      drawNativeImage(ctx, img2, 0, targetH * 0.5, targetW, targetH * 0.5, slide.imageFit, getPhotoPosition(slide, true));
-    } else {
-      ctx.fillStyle = "rgba(30,136,133,0.15)";
-      ctx.fillRect(0, targetH * 0.5, targetW, targetH * 0.5);
-    }
-  } else if (slide.layout === "text-first") {
-    if (img1) {
-      ctx.save();
-      ctx.filter = "saturate(0.88)";
-      drawNativeImage(ctx, img1, 0, targetH * 0.6, targetW, targetH * 0.4, slide.imageFit, getPhotoPosition(slide));
-      ctx.restore();
-    }
+    [[img1, rects[0], false, "rgba(5,24,36,0.15)"], [img2, rects[1], true, "rgba(30,136,133,0.15)"]].forEach(([img, r, second, placeholder]) => {
+      if (img) {
+        drawNativeImage(ctx, img, r.x, r.y, r.w, r.h, slide.imageFit, getPhotoPosition(slide, second));
+      } else {
+        ctx.fillStyle = placeholder;
+        ctx.fillRect(r.x, r.y, r.w, r.h);
+      }
+    });
   } else if (img1) {
-    drawNativeImage(ctx, img1, 0, 0, targetW, targetH, slide.imageFit, getPhotoPosition(slide));
+    const r = rects[0];
+    ctx.save();
+    if (slide.layout === "text-first") ctx.filter = "saturate(0.88)";
+    drawNativeImage(ctx, img1, r.x, r.y, r.w, r.h, slide.imageFit, getPhotoPosition(slide));
+    ctx.restore();
   }
 
   if (slide.backdrop === "dark") {
@@ -1310,73 +1504,97 @@ async function drawSlideOnCanvas(ctx, slide, targetW, targetH) {
   }
 
   if (!slide.hideBorder) {
-    ctx.strokeStyle = "rgba(200, 152, 52, 0.55)";
-    ctx.lineWidth = 3;
+    ctx.strokeStyle = BORDER_COLORS[slide.borderColor] || BORDER_COLORS.gold;
+    ctx.lineWidth = 4; // the preview's 1px line on a 498px-wide card
     ctx.strokeRect(60, 60, targetW - 120, targetH - 120);
   }
 
   if (slide.hideText) return;
+  drawTextLines(ctx, await measureSlideText(slide, targetW));
+}
 
-  ctx.save();
-  let textColor = "#10191d";
-  let textShadow = "rgba(255,255,255,0.4)";
-  let textStrokeColor = "rgba(255,255,255,0.8)"; // Default stroke color for contrast
-  if (slide.contrast === "cream") { textColor = "#fffaf0"; textShadow = "rgba(0,0,0,0.7)"; textStrokeColor = "rgba(0,0,0,0.8)"; }
-  else if (slide.contrast === "gold") { textColor = "#c89834"; textShadow = "rgba(0,0,0,0.6)"; textStrokeColor = "rgba(0,0,0,0.7)"; }
-  else if (slide.contrast === "teal") { textColor = "#1e8885"; textShadow = "rgba(255,255,255,0.6)"; textStrokeColor = "rgba(255,255,255,0.7)"; }
-  else if (slide.contrast === "blue") { textColor = "#0c3150"; textShadow = "rgba(255,255,255,0.6)"; textStrokeColor = "rgba(255,255,255,0.7)"; }
+// Lays the slide out on a hidden copy of the preview card and reads back every line of text: where the browser
+// broke the lines, where each sits (drag offsets included), and its font, colour and shadow. The export then draws
+// those same lines, so the PNG matches the preview rather than approximating it.
+async function measureSlideText(slide, targetW) {
+  const card = document.getElementById("carousel-card").cloneNode(true);
+  card.querySelectorAll("[id]").forEach((element) => element.removeAttribute("id"));
+  card.removeAttribute("id");
+  document.body.appendChild(card);
+  try {
+    paintCard(slide, card);
+    card.classList.add("export-measure");
+    const pieces = [...card.querySelectorAll(".text-drag")].filter((element) => element.textContent.trim());
+    // A face that has not downloaded yet would be laid out and drawn in a fallback font
+    await Promise.all(pieces.map((element) => {
+      const style = getComputedStyle(element);
+      return document.fonts.load(`${style.fontStyle} ${style.fontWeight} ${style.fontSize} ${style.fontFamily}`).catch(() => {});
+    }));
 
-  const fontStyle = slide.isItalic ? "italic " : "";
-  const padding = 130;
-  const contentW = targetW - (padding * 2);
-
-  ctx.font = "800 34px 'Libre Franklin', sans-serif";
-  ctx.fillStyle = textColor;
-  ctx.strokeStyle = textStrokeColor;
-  ctx.lineWidth = 2;
-  ctx.strokeText((slide.stage || "").toUpperCase(), padding, padding + 40);
-  ctx.fillText((slide.stage || "").toUpperCase(), padding, padding + 40);
-
-  ctx.fillStyle = textColor;
-  ctx.font = "800 34px 'Libre Franklin', sans-serif";
-  ctx.textAlign = "right";
-  ctx.strokeText(slide.number || "", targetW - padding, padding + 40);
-  ctx.fillText(slide.number || "", targetW - padding, padding + 40);
-  ctx.textAlign = "left";
-
-  if (slide.headline) {
-    ctx.font = `${fontStyle}bold 110px 'Playfair Display', serif`;
-    ctx.fillStyle = textColor;
-    ctx.strokeStyle = textStrokeColor;
-    ctx.lineWidth = 3;
-    ctx.shadowColor = textShadow;
-    ctx.shadowBlur = 12;
-    wrapText(ctx, slide.headline, padding, padding + 220, contentW, 115);
+    const cardBounds = card.getBoundingClientRect();
+    const scale = targetW / cardBounds.width;
+    const lines = [];
+    pieces.forEach((element) => {
+      const style = getComputedStyle(element);
+      const shadow = style.textShadow.match(/^(rgba?\([^)]*\)|#[0-9a-f]+)\s+(-?[\d.]+)px\s+(-?[\d.]+)px\s+([\d.]+)px/i);
+      const look = {
+        font: `${style.fontStyle} ${style.fontWeight} ${parseFloat(style.fontSize) * scale}px ${style.fontFamily}`,
+        letterSpacing: style.letterSpacing === "normal" ? 0 : parseFloat(style.letterSpacing) * scale,
+        color: style.color,
+        alpha: Number(style.opacity),
+        shadow: shadow ? { color: shadow[1], x: shadow[2] * scale, y: shadow[3] * scale, blur: shadow[4] * scale } : null
+      };
+      const upper = style.textTransform === "uppercase";
+      const node = element.firstChild;
+      const range = document.createRange();
+      let line = null;
+      // One character at a time: a character that sits lower than the line it follows starts a new line
+      for (let i = 0; i < node.length; i++) {
+        const char = node.data[i];
+        if (char === "\n") { line = null; continue; }
+        range.setStart(node, i);
+        range.setEnd(node, i + 1);
+        const rect = range.getClientRects()[0];
+        if (!rect || (!rect.width && /\s/.test(char))) continue;
+        if (!line || rect.top > line.top + rect.height / 2) {
+          if (/\s/.test(char)) continue; // a space at a wrap point belongs to neither line
+          line = { ...look, text: "", left: rect.left, top: rect.top };
+          lines.push(line);
+        }
+        line.text += upper ? char.toUpperCase() : char;
+      }
+      lines.forEach((l) => {
+        if (l.x !== undefined) return;
+        l.text = l.text.trimEnd();
+        l.x = (l.left - cardBounds.left) * scale;
+        l.y = (l.top - cardBounds.top) * scale;
+      });
+    });
+    return lines;
+  } finally {
+    card.remove();
   }
+}
 
-  if (slide.body) {
-    ctx.font = `${fontStyle}400 48px 'Playfair Display', serif`;
-    ctx.fillStyle = textColor;
-    ctx.strokeStyle = textStrokeColor;
-    ctx.lineWidth = 2;
-    ctx.shadowColor = textShadow;
-    ctx.shadowBlur = 10;
-    wrapText(ctx, slide.body, padding, padding + 540, contentW, 72);
-  }
-
-  const footerY = targetH - padding - 20;
-  ctx.font = "800 28px 'Libre Franklin', sans-serif";
-  ctx.fillStyle = textColor;
-  ctx.strokeStyle = textStrokeColor;
-  ctx.lineWidth = 1;
-  ctx.shadowBlur = 8;
-  ctx.strokeText((slide.caption || "").toUpperCase(), padding, footerY);
-  ctx.fillText((slide.caption || "").toUpperCase(), padding, footerY);
-
-  ctx.fillStyle = textColor;
-  ctx.textAlign = "right";
-  ctx.fillText((slide.cta || "").toUpperCase(), targetW - padding, footerY);
-  ctx.restore();
+function drawTextLines(ctx, lines) {
+  lines.forEach((line) => {
+    ctx.save();
+    ctx.font = line.font;
+    if ("letterSpacing" in ctx) ctx.letterSpacing = line.letterSpacing + "px";
+    ctx.fillStyle = line.color;
+    ctx.globalAlpha = line.alpha;
+    if (line.shadow) {
+      ctx.shadowColor = line.shadow.color;
+      ctx.shadowOffsetX = line.shadow.x;
+      ctx.shadowOffsetY = line.shadow.y;
+      ctx.shadowBlur = line.shadow.blur;
+    }
+    ctx.textBaseline = "alphabetic";
+    // The browser measured the top of each glyph box; the font's ascent puts the baseline below it
+    const ascent = ctx.measureText(line.text).fontBoundingBoxAscent;
+    ctx.fillText(line.text, line.x, line.y + ascent);
+    ctx.restore();
+  });
 }
 
 async function renderSlidesToFiles({ mimeType, quality, extension }, slideIndices = null) {
@@ -1464,29 +1682,6 @@ function drawNativeImage(ctx, img, x, y, w, h, fit, position) {
   }
   ctx.drawImage(img, renderX, renderY, renderW, renderH);
   ctx.restore();
-}
-
-function wrapText(ctx, text, x, y, maxWidth, lineHeight) {
-  const paragraphs = text.split('\n');
-  let currentY = y;
-  for (let p = 0; p < paragraphs.length; p++) {
-    const words = paragraphs[p].split(' ');
-    let line = '';
-    for (let n = 0; n < words.length; n++) {
-      const testLine = line + words[n] + ' ';
-      const metrics = ctx.measureText(testLine);
-      const testWidth = metrics.width;
-      if (testWidth > maxWidth && n > 0) {
-        ctx.fillText(line, x, currentY);
-        line = words[n] + ' ';
-        currentY += lineHeight;
-      } else {
-        line = testLine;
-      }
-    }
-    ctx.fillText(line, x, currentY);
-    currentY += lineHeight;
-  }
 }
 
 window.addEventListener("DOMContentLoaded", () => {
