@@ -35,7 +35,8 @@ Each item in the `slides` array is one card:
 | `hideBorder` | Hide the inner gold frame |
 | `isItalic` | Italicize headline and body |
 | `font` | Headline and body font key from `FONTS`: `playfair` (default), `franklin`, or a handwriting face: `caveat`, `dancing`, `homemade`, `kalam`, `marker`, `shadows` |
-| `frame` | Polaroid photo frame: `none` (default), `white`, `black` |
+| `frame` | Polaroid photo frame: `none` (default), `white`, `cream`, `black`, `gold`, `teal`, `blue`, or `custom` |
+| `frameColor` | The hex colour picked for a `custom` frame, e.g. `#d9534f` |
 | `borderColor` | Inner border line colour: `gold` (default), `cream`, `white`, `black`, `teal`, `blue` |
 | `textOffsets` | Where each text piece was dragged, e.g. `{ "headline": { "x": 0, "y": 12.5 } }`, as % of card width (x) and height (y) |
 
@@ -83,7 +84,7 @@ Outside text fields and dropdowns: arrow keys move between slides, Shift+arrow e
 
 **Headline & body font** (Story structure panel) switches the headline and body between two editorial faces and six handwriting faces. The small labels (eyebrow, number, caption, CTA) stay in Libre Franklin. Each face in `FONTS` has its own size scale and spacing so they look roughly the same size. The export waits for the slide's font to download before drawing.
 
-**Photo frame** (Photography panel) puts the photos on a white or black polaroid mat: even margins on three sides and a deeper one at the bottom. `getPhotoRects(slide)` gives the photo areas for every layout, and both the preview and the export use it. **Border colour** sets the colour of the thin inner border line.
+**Photo frame** (Photography panel) puts the photos on a coloured polaroid mat that fills from the card's edge in to the photo: white, cream, black, gold, teal, blue, or any colour from the picker that appears with **Custom colour…**. The mat has even margins on three sides and a deeper one at the bottom. `getPhotoRects(slide)` gives the photo areas for every layout, and both the preview and the export use it. **Border colour** sets the colour of the thin inner border line.
 
 ### Moving text
 
