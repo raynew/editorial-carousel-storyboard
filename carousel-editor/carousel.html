@@ -391,11 +391,19 @@ textarea.field-control { min-height: 84px; resize: vertical; }
         <div class="grid sm:grid-cols-2 gap-4 mt-4">
           <div>
             <label class="block text-sm font-bold mb-2 text-[#fffaf0]" for="photo-frame">Photo frame</label>
-            <select id="photo-frame" class="field-control bg-[#fffaf0] text-[#10191d]">
-              <option value="none">None (edge to edge)</option>
-              <option value="white">White polaroid</option>
-              <option value="black">Black polaroid</option>
-            </select>
+            <div class="flex gap-2">
+              <select id="photo-frame" class="field-control bg-[#fffaf0] text-[#10191d] min-w-0">
+                <option value="none">None (edge to edge)</option>
+                <option value="white">White polaroid</option>
+                <option value="cream">Cream polaroid</option>
+                <option value="black">Black polaroid</option>
+                <option value="gold">Gold polaroid</option>
+                <option value="teal">Teal polaroid</option>
+                <option value="blue">Blue polaroid</option>
+                <option value="custom">Custom colour…</option>
+              </select>
+              <input type="color" id="frame-color" value="#e8c7c0" aria-label="Custom frame colour" title="Pick the frame colour" class="hidden shrink-0 w-12 h-auto rounded-[10px] border border-[#0c3150]/20 bg-[#fffaf0] p-1 cursor-pointer">
+            </div>
           </div>
           <div>
             <label class="block text-sm font-bold mb-2 text-[#fffaf0]" for="border-color">Border colour</label>
@@ -619,13 +627,20 @@ const BORDER_COLORS = {
   blue: "rgba(12, 49, 80, 0.8)"
 };
 
-const FRAME_COLORS = { white: "#fbf9f4", black: "#151515" };
+// The polaroid mat that fills from the card's edge in to the photo
+const FRAME_COLORS = { white: "#fbf9f4", cream: "#efe3c6", black: "#151515", gold: "#c89834", teal: "#1e8885", blue: "#0c3150" };
+
+// The slide's frame colour, or null for no frame. "custom" uses the colour picked for that slide.
+function getFrameColor(slide) {
+  if (slide.frame === "custom") return /^#[0-9a-f]{6}$/i.test(slide.frameColor) ? slide.frameColor : FRAME_COLORS.white;
+  return FRAME_COLORS[slide.frame] || null;
+}
 
 function getFont(slide) { return FONTS[slide.font] || FONTS.playfair; }
 
 // Where each photo sits, as fractions of the card. A polaroid frame insets the photos and leaves a deeper margin at the bottom.
 function getPhotoRects(slide) {
-  const framed = !!FRAME_COLORS[slide.frame];
+  const framed = !!getFrameColor(slide);
   const side = framed ? 0.05 : 0;   // of the width
   const top = framed ? 0.04 : 0;    // of the height, the same distance as the sides on a 4:5 card
   const bottom = framed ? 0.16 : 0;
@@ -684,6 +699,7 @@ const fields = {
   isItalic: document.getElementById("italic-toggle"),
   font: document.getElementById("text-font"),
   frame: document.getElementById("photo-frame"),
+  frameColor: document.getElementById("frame-color"),
   borderColor: document.getElementById("border-color")
 };
 
@@ -775,7 +791,9 @@ function fillEditor() {
   fields.hideBorder.checked = !!slide.hideBorder;
   fields.isItalic.checked = !!slide.isItalic;
   fields.font.value = FONTS[slide.font] ? slide.font : "playfair";
-  fields.frame.value = FRAME_COLORS[slide.frame] ? slide.frame : "none";
+  fields.frame.value = getFrameColor(slide) ? slide.frame : "none";
+  if (/^#[0-9a-f]{6}$/i.test(slide.frameColor)) fields.frameColor.value = slide.frameColor;
+  fields.frameColor.classList.toggle("hidden", fields.frame.value !== "custom");
   fields.borderColor.value = BORDER_COLORS[slide.borderColor] ? slide.borderColor : "gold";
   
   updatePhotoControls(slide);
@@ -811,7 +829,7 @@ function paintCard(slide, card = document.getElementById("carousel-card")) {
   card.style.setProperty("--body-line", font.bodyLine);
   card.style.setProperty("--body-tracking", font.bodyTracking + "em");
   card.style.setProperty("--border-color", BORDER_COLORS[slide.borderColor] || BORDER_COLORS.gold);
-  card.style.setProperty("--frame-bg", FRAME_COLORS[slide.frame] || "var(--paper)");
+  card.style.setProperty("--frame-bg", getFrameColor(slide) || "var(--paper)");
 
   const rects = getPhotoRects(slide);
   [photo, photo2].forEach((surface, i) => {
@@ -1191,6 +1209,9 @@ function syncFromEditor() {
   slide.isItalic = fields.isItalic.checked;
   slide.font = fields.font.value;
   slide.frame = fields.frame.value;
+  // Kept even when another frame is chosen, so switching back to Custom brings the same colour back
+  if (slide.frame === "custom" || slide.frameColor) slide.frameColor = fields.frameColor.value;
+  fields.frameColor.classList.toggle("hidden", slide.frame !== "custom");
   slide.borderColor = fields.borderColor.value;
   
   updatePhotoControls(slide);
@@ -1465,7 +1486,7 @@ function canvasToBlob(canvas, mimeType, quality) {
 
 async function drawSlideOnCanvas(ctx, slide, targetW, targetH) {
   ctx.clearRect(0, 0, targetW, targetH);
-  ctx.fillStyle = FRAME_COLORS[slide.frame] || "#fffaf0";
+  ctx.fillStyle = getFrameColor(slide) || "#fffaf0";
   ctx.fillRect(0, 0, targetW, targetH);
 
   const img1 = await loadImage(slide.imageUrl);
