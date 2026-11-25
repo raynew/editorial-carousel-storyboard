@@ -23,6 +23,13 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Stamp version number
+        run: |
+          VERSION="v$(git rev-list --count HEAD)"
+          BUILD="Commit ${GITHUB_SHA::7}, $(git log -1 --format=%cs)"
+          sed -i "s/__APP_VERSION__/$VERSION/; s/__APP_BUILD__/$BUILD/" carousel-editor/carousel.html
       - name: Configure Pages
         uses: actions/configure-pages@v5
       - name: Upload site artifact

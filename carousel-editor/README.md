@@ -224,6 +224,8 @@ Keep **Download Carousel** for lossless local PNGs regardless of Instagram.
 
 ## Notes
 
+- The small label in the bottom-right corner is the version: `v` plus the number of commits on `main`. The Pages workflow stamps it in when it deploys (hover for the commit and date). Opened locally, it reads `dev`.
+
 - Export size is 2160×2700 (4:5 at a high Instagram-friendly resolution).
 - Browsers may prompt once per PNG; allow multiple downloads if asked.
 - Lucide is loaded on `DOMContentLoaded` if present; the UI does not depend on icons to work.

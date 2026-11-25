@@ -225,6 +225,7 @@ textarea.field-control { min-height: 84px; resize: vertical; }
 .card-cta { max-width: 45%; text-align: right; font-size: calc(0.75 * var(--u)); line-height: 1.3333; font-weight: 800; text-transform: uppercase; letter-spacing: 0.1em; }
 
 /* The hidden copy of the card the export measures text from */
+#app-version { position: fixed; right: 8px; bottom: 6px; z-index: 50; font-size: 10px; font-weight: 700; letter-spacing: 0.04em; padding: 1px 6px; border-radius: 999px; background: rgba(255, 250, 240, 0.85); color: #617078; }
 .export-measure { position: fixed !important; left: -20000px; top: 0; width: 1080px !important; max-width: none !important; pointer-events: none; }
 .export-measure .photo-surface, .export-measure .photo-surface-2 { display: none !important; }
 
@@ -2412,6 +2413,15 @@ documentation.innerHTML = `
   </div>
 `;
 document.body.appendChild(documentation);
+</script>
+<!-- The deploy workflow fills in the version and build; opened locally it reads "dev" -->
+<div id="app-version" data-build="__APP_BUILD__">__APP_VERSION__</div>
+<script>
+(() => {
+  const label = document.getElementById("app-version");
+  if (label.textContent.startsWith("__")) label.textContent = "dev";
+  if (!label.dataset.build.startsWith("__")) label.title = label.dataset.build;
+})();
 </script>
 </body>
 </html>
