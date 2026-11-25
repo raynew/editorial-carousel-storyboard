@@ -136,6 +136,29 @@ textarea.field-control { min-height: 84px; resize: vertical; }
 .layout-stacked .photo-surface-2 {
   display: block; 
 }
+/* Text only: the card shows a textured wallpaper (set as --frame-bg) and no photos. The headline block sits in the middle. */
+.layout-text-only .photo-surface,
+.layout-text-only .photo-surface-2 { display: none; }
+.layout-text-only .card-content > div:first-child { margin-block: auto; }
+
+.wallpaper-swatch {
+  position: relative;
+  aspect-ratio: 4 / 5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  border: 2px solid rgba(12, 49, 80, 0.15);
+  background: #e9e1cf center / cover no-repeat;
+  font-family: "Playfair Display", serif;
+  font-weight: 700;
+  font-size: 0.95rem;
+  overflow: hidden;
+  transition: transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
+}
+.wallpaper-swatch:hover { transform: translateY(-2px); border-color: var(--teal); }
+.wallpaper-swatch[aria-checked="true"] { border-color: var(--teal); box-shadow: 0 0 0 3px rgba(30, 136, 133, 0.28); }
+.wallpaper-swatch.is-photo { background: linear-gradient(160deg, #1e5a7a, #0c3150); color: var(--paper); font-family: "Libre Franklin", sans-serif; font-size: 0.6rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; }
 
 .card-content {
   position: relative;
@@ -357,11 +380,12 @@ textarea.field-control { min-height: 84px; resize: vertical; }
               <option value="photo-first">Photo-first (Full Background)</option>
               <option value="text-first">Text-first (Split Layout)</option>
               <option value="stacked">Stacked photos (Top & Bottom)</option>
+              <option value="text-only">Text only (Textured wallpaper)</option>
             </select>
           </div>
         </div>
 
-        <div class="grid sm:grid-cols-2 gap-4 mt-4">
+        <div id="photo-upload-row" class="grid sm:grid-cols-2 gap-4 mt-4">
           <div id="upload-1-container" style="grid-column: 1 / -1;">
             <label class="block text-sm font-bold mb-2 text-[#fffaf0]">Upload Photo 1</label>
             <input type="file" id="image-upload" accept="image/*" class="field-control bg-[#fffaf0] text-[#10191d] text-xs">
@@ -376,7 +400,7 @@ textarea.field-control { min-height: 84px; resize: vertical; }
           </div>
         </div>
 
-        <div class="grid sm:grid-cols-2 gap-4 mt-4">
+        <div id="photo-fit-row" class="grid sm:grid-cols-2 gap-4 mt-4">
           <div>
             <label class="block text-sm font-bold mb-2 text-[#fffaf0]">Image Fit</label>
             <select id="image-fit" class="field-control bg-[#fffaf0] text-[#10191d]">
@@ -396,7 +420,7 @@ textarea.field-control { min-height: 84px; resize: vertical; }
         </div>
 
         <div class="grid sm:grid-cols-2 gap-4 mt-4">
-          <div>
+          <div id="photo-frame-wrapper">
             <label class="block text-sm font-bold mb-2 text-[#fffaf0]" for="photo-frame">Photo frame</label>
             <div class="flex gap-2">
               <select id="photo-frame" class="field-control bg-[#fffaf0] text-[#10191d] min-w-0">
@@ -449,6 +473,15 @@ textarea.field-control { min-height: 84px; resize: vertical; }
       <section id="story-structure-panel" class="bg-[#fffaf0] border border-[#0c3150]/15 rounded-xl p-5 shadow-sm mb-5">
         <div class="flex items-center justify-between gap-4 mb-3">
           <h3 class="font-extrabold text-[#0c3150] text-[17px]">Story structure & readability</h3>
+        </div>
+
+        <div id="wallpaper-picker">
+          <div class="flex items-center justify-between gap-3 mb-2">
+            <p class="text-sm font-bold text-[#10191d]">Background: textured wallpaper</p>
+            <p id="wallpaper-name" class="text-xs font-bold text-[#617078]" aria-live="polite"></p>
+          </div>
+          <div id="wallpaper-swatches" class="grid grid-cols-5 sm:grid-cols-9 gap-2" role="radiogroup" aria-label="Slide background"></div>
+          <p class="mt-2 text-xs text-[#617078]">Pick a texture to make this a text-only slide. <strong>Photo</strong> puts the slide's photo back.</p>
         </div>
         
         <div class="grid sm:grid-cols-2 gap-4 mt-4">
@@ -527,6 +560,7 @@ textarea.field-control { min-height: 84px; resize: vertical; }
 
         <section class="flex flex-wrap gap-2 items-center">
           <button type="button" id="add-slide" class="action-button bg-[#1e8885] text-white hover:bg-[#176e6b]">Add slide</button>
+          <button type="button" id="add-text-slide" class="action-button bg-[#ead9aa] text-[#0c3150] hover:bg-[#dfca90]" title="Adds a text-only slide on a textured wallpaper">Add text slide</button>
           <button type="button" id="duplicate-slide" class="action-button bg-[#0c3150] text-white hover:bg-[#08243a]">Duplicate</button>
           <button type="button" id="delete-slide" class="action-button border border-[#b65045] text-[#9d382f] bg-transparent hover:bg-[#f8dfd8]">Delete</button>
           
@@ -645,6 +679,302 @@ function getFrameColor(slide) {
 }
 
 function getFont(slide) { return FONTS[slide.font] || FONTS.playfair; }
+
+// TEXTURED WALLPAPERS for text-only slides. Each is painted once on a canvas from a fixed seed, so the same key
+// always gives the same texture: only the key is saved in the project, and the preview and the export share the art.
+const WALLPAPER_W = 1080;
+const WALLPAPER_H = 1350;
+
+function seededRandom(seed) {
+  return () => {
+    seed = (seed + 0x6d2b79f5) | 0;
+    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+const paint = {
+  fill(ctx, colour) { ctx.fillStyle = colour; ctx.fillRect(0, 0, WALLPAPER_W, WALLPAPER_H); },
+  // Film-like grain: every pixel nudged lighter or darker
+  grain(ctx, rand, amount) {
+    const image = ctx.getImageData(0, 0, WALLPAPER_W, WALLPAPER_H);
+    const d = image.data;
+    for (let i = 0; i < d.length; i += 4) {
+      const n = (rand() - 0.5) * amount;
+      d[i] += n; d[i + 1] += n; d[i + 2] += n;
+    }
+    ctx.putImageData(image, 0, 0);
+  },
+  // Soft, blurred patches of colour
+  mottle(ctx, rand, colours, count, radius, alpha, blur) {
+    ctx.save();
+    ctx.filter = `blur(${blur}px)`;
+    for (let i = 0; i < count; i++) {
+      ctx.globalAlpha = alpha * (0.5 + rand() * 0.5);
+      ctx.fillStyle = colours[Math.floor(rand() * colours.length)];
+      ctx.beginPath();
+      ctx.ellipse(rand() * WALLPAPER_W, rand() * WALLPAPER_H, radius * (0.5 + rand()), radius * (0.5 + rand()), rand() * Math.PI, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
+  },
+  // Short curved strands, like the fibres in handmade paper
+  fibres(ctx, rand, colour, count, length, alpha) {
+    ctx.save();
+    ctx.strokeStyle = colour;
+    for (let i = 0; i < count; i++) {
+      const x = rand() * WALLPAPER_W, y = rand() * WALLPAPER_H, a = rand() * Math.PI * 2, l = length * (0.4 + rand());
+      ctx.globalAlpha = alpha * rand();
+      ctx.lineWidth = 0.5 + rand();
+      ctx.beginPath();
+      ctx.moveTo(x, y);
+      ctx.quadraticCurveTo(x + Math.cos(a + 0.6) * l * 0.6, y + Math.sin(a + 0.6) * l * 0.6, x + Math.cos(a) * l, y + Math.sin(a) * l);
+      ctx.stroke();
+    }
+    ctx.restore();
+  },
+  speckle(ctx, rand, colours, count, minR, maxR, alpha) {
+    ctx.save();
+    for (let i = 0; i < count; i++) {
+      ctx.globalAlpha = alpha * (0.4 + rand() * 0.6);
+      ctx.fillStyle = colours[Math.floor(rand() * colours.length)];
+      ctx.beginPath();
+      ctx.arc(rand() * WALLPAPER_W, rand() * WALLPAPER_H, minR + rand() * (maxR - minR), 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
+  },
+  vignette(ctx, colour, alpha) {
+    const g = ctx.createRadialGradient(WALLPAPER_W / 2, WALLPAPER_H / 2, WALLPAPER_W * 0.3, WALLPAPER_W / 2, WALLPAPER_H / 2, WALLPAPER_H * 0.75);
+    g.addColorStop(0, "rgba(0,0,0,0)");
+    g.addColorStop(1, colour);
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, WALLPAPER_W, WALLPAPER_H);
+    ctx.restore();
+  },
+  // Irregular polygon, roughened by splitting every edge and pushing the midpoint out
+  roughShape(rand, x, y, r, sides, depth, variance) {
+    let points = Array.from({ length: sides }, (_, i) => {
+      const a = (i / sides) * Math.PI * 2;
+      return { x: x + Math.cos(a) * r, y: y + Math.sin(a) * r };
+    });
+    for (let d = 0; d < depth; d++) {
+      points = points.flatMap((p, i) => {
+        const q = points[(i + 1) % points.length];
+        const len = Math.hypot(q.x - p.x, q.y - p.y);
+        return [p, { x: (p.x + q.x) / 2 + (rand() - 0.5) * len * variance, y: (p.y + q.y) / 2 + (rand() - 0.5) * len * variance }];
+      });
+    }
+    return points;
+  },
+  shape(ctx, points) {
+    ctx.beginPath();
+    points.forEach((p, i) => (i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y)));
+    ctx.closePath();
+    ctx.fill();
+  },
+  // Watercolour: many faint, slightly different layers of one rough shape build up soft, bleeding edges
+  watercolour(ctx, rand, colour, x, y, r, layers = 36, alpha = 0.035) {
+    const base = paint.roughShape(rand, x, y, r, 10, 3, 0.9);
+    ctx.save();
+    ctx.fillStyle = colour;
+    for (let i = 0; i < layers; i++) {
+      ctx.globalAlpha = alpha;
+      let points = base;
+      for (let d = 0; d < 3; d++) {
+        points = points.flatMap((p, j) => {
+          const q = points[(j + 1) % points.length];
+          const len = Math.hypot(q.x - p.x, q.y - p.y);
+          return [p, { x: (p.x + q.x) / 2 + (rand() - 0.5) * len * 0.8, y: (p.y + q.y) / 2 + (rand() - 0.5) * len * 0.8 }];
+        });
+      }
+      paint.shape(ctx, points);
+    }
+    ctx.restore();
+  },
+  // A wandering line from the top edge downwards, for marble veins and chalk scratches
+  vein(ctx, rand, colour, width, alpha, blur = 0) {
+    let x = rand() * WALLPAPER_W * 1.4 - WALLPAPER_W * 0.2, y = -40;
+    const heading = Math.PI * (0.3 + rand() * 0.4);
+    let a = heading;
+    ctx.save();
+    ctx.strokeStyle = colour;
+    ctx.globalAlpha = alpha;
+    ctx.lineWidth = width;
+    ctx.lineCap = "round";
+    if (blur) ctx.filter = `blur(${blur}px)`;
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    while (y < WALLPAPER_H + 40 && x > -300 && x < WALLPAPER_W + 300) {
+      a += (rand() - 0.5) * 0.7 + (heading - a) * 0.08;
+      x += Math.cos(a) * 14;
+      y += Math.sin(a) * 14;
+      ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+    ctx.restore();
+  }
+};
+
+// text: the text colour (a contrast key) that reads best on it; border: the border line colour that suits it
+const WALLPAPERS = {
+  paper: {
+    label: "Cream paper", text: "standard", border: "gold",
+    paint(ctx, rand) {
+      paint.fill(ctx, "#f5ecd8");
+      paint.mottle(ctx, rand, ["#eadcbc", "#fbf5e8"], 40, 160, 0.5, 70);
+      paint.vignette(ctx, "#b89c66", 0.28);
+      paint.fibres(ctx, rand, "#7d6644", 2200, 12, 0.18);
+      paint.speckle(ctx, rand, ["#4d3e2a", "#8a7350"], 320, 0.4, 1.4, 0.55);
+      paint.grain(ctx, rand, 16);
+    }
+  },
+  watercolour: {
+    label: "Watercolour wash", text: "blue", border: "teal",
+    paint(ctx, rand) {
+      paint.fill(ctx, "#fbf6ea");
+      // Washes kept to the corners, clear of the text
+      paint.watercolour(ctx, rand, "#1e8885", WALLPAPER_W * 0.96, WALLPAPER_H * 0.02, WALLPAPER_W * 0.3);
+      paint.watercolour(ctx, rand, "#0c3150", WALLPAPER_W * 1.02, WALLPAPER_H * 0.24, WALLPAPER_W * 0.12, 30, 0.03);
+      paint.watercolour(ctx, rand, "#d6a440", WALLPAPER_W * 0.04, WALLPAPER_H * 0.98, WALLPAPER_W * 0.32);
+      paint.watercolour(ctx, rand, "#d98a7a", WALLPAPER_W * 0.34, WALLPAPER_H * 1.04, WALLPAPER_W * 0.13, 28, 0.03);
+      paint.fibres(ctx, rand, "#8a7350", 1200, 10, 0.1);
+      paint.grain(ctx, rand, 14);
+    }
+  },
+  riso: {
+    label: "Riso glow", text: "standard", border: "black",
+    paint(ctx, rand) {
+      paint.fill(ctx, "#f3e8d2");
+      const glow = (colour, x, y, r, alpha) => {
+        ctx.save();
+        ctx.filter = "blur(110px)";
+        ctx.globalAlpha = alpha;
+        ctx.fillStyle = colour;
+        ctx.beginPath();
+        ctx.arc(x * WALLPAPER_W, y * WALLPAPER_H, r * WALLPAPER_W, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      };
+      glow("#1e8885", 0.1, 0.12, 0.5, 0.7);
+      glow("#e0a93c", 0.92, 0.8, 0.55, 0.75);
+      glow("#d9806e", 0.85, 0.1, 0.32, 0.55);
+      glow("#0c3150", 0.05, 0.95, 0.3, 0.35);
+      paint.grain(ctx, rand, 48);
+    }
+  },
+  marble: {
+    label: "Gold-vein marble", text: "standard", border: "gold",
+    paint(ctx, rand) {
+      paint.fill(ctx, "#f4efe5");
+      paint.mottle(ctx, rand, ["#e6dfd2", "#fbf8f2"], 30, 180, 0.6, 80);
+      for (let i = 0; i < 6; i++) paint.vein(ctx, rand, "#8f887d", 10 + rand() * 18, 0.1, 10);
+      for (let i = 0; i < 9; i++) paint.vein(ctx, rand, "#7d776d", 0.8 + rand() * 1.4, 0.35);
+      for (let i = 0; i < 3; i++) {
+        paint.vein(ctx, rand, "#e2bd6a", 6, 0.25, 4);
+        paint.vein(ctx, rand, "#c89834", 1.5 + rand() * 2, 0.85);
+      }
+      paint.grain(ctx, rand, 8);
+    }
+  },
+  terrazzo: {
+    label: "Terrazzo", text: "standard", border: "black",
+    paint(ctx, rand) {
+      paint.fill(ctx, "#efe6d4");
+      paint.mottle(ctx, rand, ["#e3d8c2", "#f8f1e3"], 30, 140, 0.5, 60);
+      const chips = ["#1e8885", "#c89834", "#0c3150", "#d9806e", "#b9ad97", "#10191d"];
+      ctx.save();
+      for (let i = 0; i < 170; i++) {
+        const big = rand() < 0.15;
+        ctx.globalAlpha = 0.45 + rand() * 0.3;
+        ctx.fillStyle = chips[Math.floor(rand() * chips.length)];
+        paint.shape(ctx, paint.roughShape(rand, rand() * WALLPAPER_W, rand() * WALLPAPER_H, big ? 10 + rand() * 12 : 2 + rand() * 6, 5 + Math.floor(rand() * 3), 1, 0.7));
+      }
+      ctx.restore();
+      paint.grain(ctx, rand, 12);
+    }
+  },
+  kraft: {
+    label: "Kraft paper", text: "standard", border: "black",
+    paint(ctx, rand) {
+      paint.fill(ctx, "#b78c5d");
+      paint.mottle(ctx, rand, ["#a27848", "#c89f6e", "#ad8352"], 60, 150, 0.55, 60);
+      paint.fibres(ctx, rand, "#5e4024", 3200, 16, 0.3);
+      paint.fibres(ctx, rand, "#e2c49a", 1400, 12, 0.25);
+      paint.speckle(ctx, rand, ["#3d2a17", "#4f3820"], 700, 0.4, 1.6, 0.6);
+      paint.vignette(ctx, "#5e4024", 0.3);
+      paint.grain(ctx, rand, 24);
+    }
+  },
+  midnight: {
+    label: "Midnight gold leaf", text: "cream", border: "gold",
+    paint(ctx, rand) {
+      const g = ctx.createLinearGradient(0, 0, WALLPAPER_W, WALLPAPER_H);
+      g.addColorStop(0, "#123e63");
+      g.addColorStop(1, "#06141f");
+      paint.fill(ctx, g);
+      paint.mottle(ctx, rand, ["#1b4b70", "#04101a"], 40, 170, 0.5, 70);
+      paint.speckle(ctx, rand, ["#c89834", "#e8c77e", "#a87d24"], 420, 0.5, 2.2, 0.85);
+      ctx.save();
+      for (let i = 0; i < 26; i++) {
+        ctx.globalAlpha = 0.55 + rand() * 0.35;
+        ctx.fillStyle = rand() < 0.5 ? "#d4a845" : "#e8c77e";
+        paint.shape(ctx, paint.roughShape(rand, rand() * WALLPAPER_W, rand() * WALLPAPER_H, 3 + rand() * 8, 5, 2, 0.9));
+      }
+      ctx.restore();
+      paint.vignette(ctx, "#02080d", 0.5);
+      paint.grain(ctx, rand, 16);
+    }
+  },
+  chalk: {
+    label: "Chalkboard", text: "cream", border: "cream",
+    paint(ctx, rand) {
+      paint.fill(ctx, "#252b2e");
+      paint.mottle(ctx, rand, ["#ffffff"], 26, 160, 0.06, 50);
+      paint.mottle(ctx, rand, ["#14181a"], 20, 160, 0.4, 60);
+      for (let i = 0; i < 40; i++) paint.vein(ctx, rand, "#ffffff", 0.6 + rand(), 0.06);
+      paint.speckle(ctx, rand, ["#ffffff"], 900, 0.3, 1.1, 0.2);
+      paint.vignette(ctx, "#000000", 0.45);
+      paint.grain(ctx, rand, 20);
+    }
+  }
+};
+
+const wallpaperArt = {};
+
+// The painted canvas and a JPEG data URL of it, made on first use
+function getWallpaperArt(key) {
+  if (!wallpaperArt[key]) {
+    const canvas = document.createElement("canvas");
+    canvas.width = WALLPAPER_W;
+    canvas.height = WALLPAPER_H;
+    const seed = [...key].reduce((hash, char) => Math.imul(hash, 31) + char.charCodeAt(0), 7);
+    WALLPAPERS[key].paint(canvas.getContext("2d", { willReadFrequently: true }), seededRandom(seed));
+    wallpaperArt[key] = { canvas, url: canvas.toDataURL("image/jpeg", 0.92) };
+  }
+  return wallpaperArt[key];
+}
+
+// The slide's wallpaper key, or null for a photo slide. A text-only slide without one gets cream paper.
+function getWallpaperKey(slide) {
+  if (slide.layout !== "text-only") return null;
+  return WALLPAPERS[slide.wallpaper] ? slide.wallpaper : "paper";
+}
+
+// Makes the slide a text-only slide on that wallpaper, with the text shown and coloured to read well on it
+function applyWallpaper(slide, key) {
+  slide.layout = "text-only";
+  slide.wallpaper = key;
+  slide.hideText = false;
+  slide.backdrop = "none";
+  slide.contrast = WALLPAPERS[key].text;
+  slide.borderColor = WALLPAPERS[key].border;
+}
+
+const CONTRAST_COLOURS = { standard: "#10191d", cream: "#fffaf0", gold: "#c89834", teal: "#1e8885", blue: "#0c3150" };
 
 // Where each photo sits, as fractions of the card. A polaroid frame insets the photos and leaves a deeper margin at the bottom.
 function getPhotoRects(slide) {
@@ -773,6 +1103,10 @@ function setMessage(message) {
 
 function updatePhotoControls(slide) {
   const isStacked = slide.layout === "stacked";
+  // Photos, fit, focal point and frame do nothing on a text-only slide
+  const textOnly = slide.layout === "text-only";
+  ["photo-upload-row", "photo-fit-row", "photo-frame-wrapper"].forEach((id) => { document.getElementById(id).style.display = textOnly ? "none" : ""; });
+  updateWallpaperSwatches(slide);
   document.getElementById("upload-1-container").style.gridColumn = isStacked ? "" : "1 / -1";
   document.getElementById("upload-2-container").style.display = isStacked ? "" : "none";
   document.getElementById("focal-2-wrapper").style.display = isStacked ? "block" : "none";
@@ -843,7 +1177,8 @@ function paintCard(slide, card = document.getElementById("carousel-card")) {
   card.style.setProperty("--body-line", font.bodyLine);
   card.style.setProperty("--body-tracking", font.bodyTracking + "em");
   card.style.setProperty("--border-color", BORDER_COLORS[slide.borderColor] || BORDER_COLORS.gold);
-  card.style.setProperty("--frame-bg", getFrameColor(slide) || "var(--paper)");
+  const wallpaperKey = getWallpaperKey(slide);
+  card.style.setProperty("--frame-bg", wallpaperKey ? `url(${getWallpaperArt(wallpaperKey).url}) center / cover no-repeat` : getFrameColor(slide) || "var(--paper)");
 
   const rects = getPhotoRects(slide);
   [photo, photo2].forEach((surface, i) => {
@@ -1027,7 +1362,8 @@ function renderRail() {
     item.draggable = true; 
     
     const thumbPosition = getPhotoPosition(slide);
-    let bgStyle = slide.imageUrl ? `background-image: url(${slide.imageUrl}); background-position: ${thumbPosition.x}% ${thumbPosition.y}%;` : `background: #0c3150;`;
+    const thumbWallpaper = getWallpaperKey(slide);
+    let bgStyle = thumbWallpaper ? `background-image: url(${getWallpaperArt(thumbWallpaper).url});` : slide.imageUrl ? `background-image: url(${slide.imageUrl}); background-position: ${thumbPosition.x}% ${thumbPosition.y}%;` : `background: #0c3150;`;
     let thumbText = slide.headline ? slide.headline.substring(0, 20) + "..." : slide.stage || "Slide " + (index + 1);
     
     item.innerHTML = `<span class="thumb-photo fit-${slide.imageFit}" style="${bgStyle}"></span>
@@ -1231,6 +1567,7 @@ function syncFromEditor() {
   if (fields.focal2.value !== "custom") {
     setPhotoPosition(slide, { x: 50, y: fields.focal2.value === "top" ? 0 : fields.focal2.value === "bottom" ? 100 : 50 }, true);
   }
+  const becameTextOnly = slide.layout !== "text-only" && fields.layout.value === "text-only";
   slide.layout = fields.layout.value;
   slide.imageFit = fields.imageFit.value;
   slide.backdrop = fields.backdrop.value;
@@ -1244,6 +1581,10 @@ function syncFromEditor() {
   if (slide.frame === "custom" || slide.frameColor) slide.frameColor = fields.frameColor.value;
   fields.frameColor.classList.toggle("hidden", slide.frame !== "custom");
   slide.borderColor = fields.borderColor.value;
+  if (becameTextOnly) {
+    applyWallpaper(slide, WALLPAPERS[slide.wallpaper] ? slide.wallpaper : "paper");
+    fillEditor();
+  }
   
   updatePhotoControls(slide);
 
@@ -1513,6 +1854,64 @@ document.getElementById('import-project').addEventListener('change', (e) => {
   reader.readAsText(file);
 });
 
+// The wallpaper picker in the Story structure panel: Photo, then one swatch per texture
+const swatchRow = document.getElementById("wallpaper-swatches");
+[["photo", "Photo"], ...Object.entries(WALLPAPERS).map(([key, wallpaper]) => [key, wallpaper.label])].forEach(([key, label]) => {
+  const swatch = document.createElement("button");
+  swatch.type = "button";
+  swatch.className = "wallpaper-swatch" + (key === "photo" ? " is-photo" : "");
+  swatch.dataset.wallpaper = key;
+  swatch.setAttribute("role", "radio");
+  swatch.setAttribute("aria-label", label);
+  swatch.title = label;
+  swatch.textContent = key === "photo" ? "Photo" : "Aa";
+  if (key !== "photo") swatch.style.color = CONTRAST_COLOURS[WALLPAPERS[key].text];
+  swatch.addEventListener("click", () => {
+    const slide = slides[activeIndex];
+    if (key === "photo") {
+      if (slide.layout === "text-only") slide.layout = "photo-first";
+    } else {
+      applyWallpaper(slide, key);
+    }
+    updateInterface();
+    setMessage(key === "photo" ? "Photo background back on this slide." : `${label} wallpaper on this slide. Type your words below.`);
+  });
+  swatchRow.appendChild(swatch);
+});
+
+// Painting a texture takes a moment, so the swatch pictures fill in one at a time after the page is up
+function paintSwatchPictures() {
+  const keys = Object.keys(WALLPAPERS);
+  const next = () => {
+    const key = keys.shift();
+    if (!key) return;
+    swatchRow.querySelector(`[data-wallpaper="${key}"]`).style.backgroundImage = `url(${getWallpaperArt(key).url})`;
+    setTimeout(next, 0);
+  };
+  setTimeout(next, 0);
+}
+
+function updateWallpaperSwatches(slide) {
+  const current = getWallpaperKey(slide) || "photo";
+  swatchRow.querySelectorAll(".wallpaper-swatch").forEach((swatch) => {
+    swatch.setAttribute("aria-checked", String(swatch.dataset.wallpaper === current));
+  });
+  document.getElementById("wallpaper-name").textContent = current === "photo" ? "Photo" : WALLPAPERS[current].label;
+}
+
+document.getElementById("add-text-slide").addEventListener("click", () => {
+  const slide = createBlankSlide();
+  // Follows the open slide's wallpaper, so a run of text slides keeps one look
+  applyWallpaper(slide, getWallpaperKey(slides[activeIndex]) || "paper");
+  slide.headline = "Your headline here";
+  slides.splice(activeIndex + 1, 0, slide);
+  activeIndex++;
+  updateInterface();
+  fields.headline.focus();
+  fields.headline.select();
+  setMessage("Text slide added. Pick a wallpaper and type your words.");
+});
+
 document.getElementById("inline-previous").addEventListener("click", () => {
   if(activeIndex > 0) { activeIndex--; updateInterface(); }
 });
@@ -1664,8 +2063,13 @@ async function drawSlideOnCanvas(ctx, slide, targetW, targetH) {
   ctx.fillStyle = getFrameColor(slide) || "#fffaf0";
   ctx.fillRect(0, 0, targetW, targetH);
 
-  const img1 = await loadImage(slide.imageUrl);
-  const img2 = await loadImage(slide.imageUrl2);
+  const wallpaperKey = getWallpaperKey(slide);
+  if (wallpaperKey) {
+    ctx.drawImage(getWallpaperArt(wallpaperKey).canvas, 0, 0, targetW, targetH);
+  }
+
+  const img1 = wallpaperKey ? null : await loadImage(slide.imageUrl);
+  const img2 = wallpaperKey ? null : await loadImage(slide.imageUrl2);
   const rects = getPhotoRects(slide).map((r) => ({ x: r.x * targetW, y: r.y * targetH, w: r.w * targetW, h: r.h * targetH }));
 
   if (slide.layout === "stacked") {
@@ -1883,6 +2287,7 @@ function drawNativeImage(ctx, img, x, y, w, h, fit, position) {
 window.addEventListener("DOMContentLoaded", () => {
   if(typeof lucide !== 'undefined') lucide.createIcons();
   updateInterface();
+  paintSwatchPictures();
 });
 
 /* Documentation for using this tool */
