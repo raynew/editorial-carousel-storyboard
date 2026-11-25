@@ -1283,7 +1283,7 @@ const AI_MARKERS = [
   { label: "OpenAI / ChatGPT", pattern: /\b(OpenAI|ChatGPT|GPT-4o|gpt-image)\b/ },
   { label: "Adobe Firefly", pattern: /Firefly/ },
   { label: "Google Imagen / Gemini", pattern: /Google Imagen|Imagen \d|Google Gemini|Gemini Image|Made with Google AI|SynthID/ },
-  { label: "Stable Diffusion", pattern: /stable[ -_]?diffusion|\bSDXL\b|Automatic1111|InvokeAI|Fooocus/i },
+  { label: "Stable Diffusion", pattern: /stable[ _-]?diffusion|\bSDXL\b|Automatic1111|InvokeAI|Fooocus/i },
   { label: "NovelAI", pattern: /NovelAI/ },
   { label: "Ideogram", pattern: /Ideogram/ },
   { label: "Leonardo.Ai", pattern: /Leonardo\.?Ai/i },
@@ -1408,7 +1408,7 @@ document.getElementById('image-upload').addEventListener('change', async functio
     updatePhotoControls(slide);
     slide.imageUrl = await fileToDataUrl(file);
     slide.aiFlags = await checkPhotoForAi(file);
-    updatePhotoControls(slide);
+    if (slide === slides[activeIndex]) updatePhotoControls(slide);
     if (slide.aiFlags.length) setMessage("Warning: this photo's metadata says it was made or edited with generative AI (" + slide.aiFlags.join(", ") + ").");
     paintCard(slides[activeIndex]);
     renderRail();
@@ -1424,7 +1424,7 @@ document.getElementById('image-upload-2').addEventListener('change', async funct
     updatePhotoControls(slide);
     slide.imageUrl2 = await fileToDataUrl(file);
     slide.aiFlags2 = await checkPhotoForAi(file);
-    updatePhotoControls(slide);
+    if (slide === slides[activeIndex]) updatePhotoControls(slide);
     if (slide.aiFlags2.length) setMessage("Warning: this photo's metadata says it was made or edited with generative AI (" + slide.aiFlags2.join(", ") + ").");
     paintCard(slides[activeIndex]);
     renderRail();
