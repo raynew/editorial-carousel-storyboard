@@ -28,7 +28,8 @@ Each item in the `slides` array is one card:
 | `imageUrl` / `imageUrl2` | Photo 1 and (stacked layout) photo 2 as data URLs |
 | `imageFit` | `cover` (crop) or `contain` (letterbox) |
 | `focal` / `focal2` | Crop anchor: `center`, `top`, `bottom` |
-| `layout` | `photo-first`, `text-first`, or `stacked` |
+| `layout` | `photo-first`, `text-first`, `stacked`, or `text-only` |
+| `wallpaper` | Textured background on a `text-only` slide: `paper` (default), `watercolour`, `riso`, `marble`, `terrazzo`, `kraft`, `midnight`, `chalk` |
 | `backdrop` | Overlay: `none`, `dark`, `teal` |
 | `contrast` | Text colour: `standard`, `cream`, `gold`, `teal`, `blue` |
 | `hideText` | Hide all type on the card |
@@ -86,6 +87,12 @@ Outside text fields and dropdowns: arrow keys move between slides, Shift+arrow e
 **Headline & body font** (Story structure panel) switches the headline and body between two editorial faces and six handwriting faces. The small labels (eyebrow, number, caption, CTA) stay in Libre Franklin. Each face in `FONTS` has its own size scale and spacing so they look roughly the same size. The export waits for the slide's font to download before drawing.
 
 **Photo frame** (Photography panel) puts the photos on a coloured polaroid mat that fills from the card's edge in to the photo: white, cream, black, gold, teal, blue, or any colour from the picker that appears with **Custom colour…**. The mat has even margins on three sides and a deeper one at the bottom. `getPhotoRects(slide)` gives the photo areas for every layout, and both the preview and the export use it. **Border colour** sets the colour of the thin inner border line.
+
+### Textured wallpapers and text-only slides
+
+The top of the **Story structure** panel has a row of wallpaper swatches. Picking one makes the slide a text-only slide: the photo is hidden, the text is switched on, and the text and border colours change to ones that read well on that texture (change them afterwards if you like). **Photo** puts the slide's photo back, with the layout, tint and colours it had before. The photo stays on the slide while it's text-only, but it isn't shown, exported or counted in the duplicate and AI notices, and folder upload skips text-only slides. Choosing **Text only (Textured wallpaper)** in Slide composition does the same with cream paper, and **Add text slide** adds a new text slide after the open one, on the same wallpaper.
+
+The textures (cream paper, watercolour wash, riso glow, gold-vein marble, terrazzo, kraft paper, midnight gold leaf, chalkboard) are painted in the browser by `WALLPAPERS[key].paint` from a fixed seed, so each looks the same every time and only the key is saved in the project. `paintWallpaper(key, scale)` paints one at any size. The preview paints each wallpaper the first time a slide shows it (`getWallpaperArt`), the swatches and slide thumbs use a small copy (`getWallpaperThumb`), and the export paints it at full 2160 × 2700 so the grain stays sharp (`getExportWallpaper`). Soft shapes use the canvas blur filter, or radial gradients in browsers without it. On a text-only slide the headline block sits in the middle of the card.
 
 ### Moving text
 
@@ -213,6 +220,7 @@ Keep **Download Carousel** for lossless local PNGs regardless of Instagram.
 - **Photo-first** — image fills the card; type sits on top.
 - **Text-first** — type on the upper 60%; photo in the lower 40% with slightly reduced saturation.
 - **Stacked** — two photos, 50% / 50%; second upload and second focal point apply here.
+- **Text only** — no photo; a textured wallpaper fills the card behind the text. The photo controls are hidden.
 
 ## Notes
 
