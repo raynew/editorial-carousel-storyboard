@@ -685,6 +685,20 @@ function getFont(slide) { return FONTS[slide.font] || FONTS.playfair; }
 const WALLPAPER_W = 1080;
 const WALLPAPER_H = 1350;
 
+// Whether this browser blurs canvas drawings (ctx.filter). Safari before 18 does not, so soft shapes fall back to gradients there.
+const CANVAS_BLUR = (() => {
+  const ctx = document.createElement("canvas").getContext("2d", { willReadFrequently: true });
+  ctx.filter = "blur(2px)";
+  ctx.fillRect(4, 4, 1, 1);
+  return ctx.getImageData(1, 4, 1, 1).data[3] > 0;
+})();
+
+// "#rrggbb" as a fully transparent rgba(), for gradients that fade a colour out
+function transparentOf(hex) {
+  const n = parseInt(hex.slice(1), 16);
+  return `rgba(${n >> 16}, ${(n >> 8) & 255}, ${n & 255}, 0)`;
+}
+
 function seededRandom(seed) {
   return () => {
     seed = (seed + 0x6d2b79f5) | 0;
@@ -698,7 +712,8 @@ const paint = {
   fill(ctx, colour) { ctx.fillStyle = colour; ctx.fillRect(0, 0, WALLPAPER_W, WALLPAPER_H); },
   // Film-like grain: every pixel nudged lighter or darker
   grain(ctx, rand, amount) {
-    const image = ctx.getImageData(0, 0, WALLPAPER_W, WALLPAPER_H);
+    // Per pixel of the canvas, whatever scale it is painted at, so a bigger canvas gets finer grain
+    const image = ctx.getImageData(0, 0, ctx.canvas.width, ctx.canvas.height);
     const d = image.data;
     for (let i = 0; i < d.length; i += 4) {
       const n = (rand() - 0.5) * amount;
@@ -708,14 +723,36 @@ const paint = {
   },
   // Soft, blurred patches of colour
   mottle(ctx, rand, colours, count, radius, alpha, blur) {
-    ctx.save();
-    ctx.filter = `blur(${blur}px)`;
     for (let i = 0; i < count; i++) {
-      ctx.globalAlpha = alpha * (0.5 + rand() * 0.5);
-      ctx.fillStyle = colours[Math.floor(rand() * colours.length)];
+      const a = alpha * (0.5 + rand() * 0.5);
+      const colour = colours[Math.floor(rand() * colours.length)];
+      const x = rand() * WALLPAPER_W, y = rand() * WALLPAPER_H;
+      const rx = radius * (0.5 + rand()), ry = radius * (0.5 + rand());
+      paint.softEllipse(ctx, x, y, rx, ry, rand() * Math.PI, colour, a, blur);
+    }
+  },
+  // A soft-edged ellipse: blurred with the canvas filter where the browser has it, otherwise a radial gradient that fades out
+  softEllipse(ctx, x, y, rx, ry, rotation, colour, alpha, blur) {
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    if (CANVAS_BLUR) {
+      // Filter lengths ignore the canvas transform, so scale the blur with the painting
+      ctx.filter = `blur(${blur * ctx.getTransform().a}px)`;
+      ctx.fillStyle = colour;
       ctx.beginPath();
-      ctx.ellipse(rand() * WALLPAPER_W, rand() * WALLPAPER_H, radius * (0.5 + rand()), radius * (0.5 + rand()), rand() * Math.PI, 0, Math.PI * 2);
+      ctx.ellipse(x, y, rx, ry, rotation, 0, Math.PI * 2);
       ctx.fill();
+    } else {
+      ctx.translate(x, y);
+      ctx.rotate(rotation);
+      ctx.scale(1, ry / rx);
+      const r = rx + blur;
+      const g = ctx.createRadialGradient(0, 0, 0, 0, 0, r);
+      g.addColorStop(0, colour);
+      g.addColorStop(Math.max(0, (rx - blur) / r), colour);
+      g.addColorStop(1, transparentOf(colour));
+      ctx.fillStyle = g;
+      ctx.fillRect(-r, -r, r * 2, r * 2);
     }
     ctx.restore();
   },
@@ -805,7 +842,8 @@ const paint = {
     ctx.globalAlpha = alpha;
     ctx.lineWidth = width;
     ctx.lineCap = "round";
-    if (blur) ctx.filter = `blur(${blur}px)`;
+    if (blur && CANVAS_BLUR) ctx.filter = `blur(${blur * ctx.getTransform().a}px)`;
+    else if (blur) ctx.globalAlpha = alpha * 0.5; // a faint hard line where the browser can't blur
     ctx.beginPath();
     ctx.moveTo(x, y);
     while (y < WALLPAPER_H + 40 && x > -300 && x < WALLPAPER_W + 300) {
@@ -849,16 +887,7 @@ const WALLPAPERS = {
     label: "Riso glow", text: "standard", border: "black",
     paint(ctx, rand) {
       paint.fill(ctx, "#f3e8d2");
-      const glow = (colour, x, y, r, alpha) => {
-        ctx.save();
-        ctx.filter = "blur(110px)";
-        ctx.globalAlpha = alpha;
-        ctx.fillStyle = colour;
-        ctx.beginPath();
-        ctx.arc(x * WALLPAPER_W, y * WALLPAPER_H, r * WALLPAPER_W, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.restore();
-      };
+      const glow = (colour, x, y, r, alpha) => paint.softEllipse(ctx, x * WALLPAPER_W, y * WALLPAPER_H, r * WALLPAPER_W, r * WALLPAPER_W, 0, colour, alpha, 110);
       glow("#1e8885", 0.1, 0.12, 0.5, 0.7);
       glow("#e0a93c", 0.92, 0.8, 0.55, 0.75);
       glow("#d9806e", 0.85, 0.1, 0.32, 0.55);
@@ -944,18 +973,38 @@ const WALLPAPERS = {
 };
 
 const wallpaperArt = {};
+const wallpaperThumbs = {};
 
-// The painted canvas and a JPEG data URL of it, made on first use
+// Paints a wallpaper at a scale of its 1080 x 1350 design size. The seed makes the picture the same at every scale, only finer.
+function paintWallpaper(key, scale) {
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.round(WALLPAPER_W * scale);
+  canvas.height = Math.round(WALLPAPER_H * scale);
+  const ctx = canvas.getContext("2d", { willReadFrequently: true });
+  ctx.setTransform(scale, 0, 0, scale, 0, 0);
+  const seed = [...key].reduce((hash, char) => Math.imul(hash, 31) + char.charCodeAt(0), 7);
+  WALLPAPERS[key].paint(ctx, seededRandom(seed));
+  return canvas;
+}
+
+// The preview picture, painted the first time a slide shows that wallpaper
 function getWallpaperArt(key) {
-  if (!wallpaperArt[key]) {
-    const canvas = document.createElement("canvas");
-    canvas.width = WALLPAPER_W;
-    canvas.height = WALLPAPER_H;
-    const seed = [...key].reduce((hash, char) => Math.imul(hash, 31) + char.charCodeAt(0), 7);
-    WALLPAPERS[key].paint(canvas.getContext("2d", { willReadFrequently: true }), seededRandom(seed));
-    wallpaperArt[key] = { canvas, url: canvas.toDataURL("image/jpeg", 0.92) };
-  }
+  if (!wallpaperArt[key]) wallpaperArt[key] = { url: paintWallpaper(key, 1).toDataURL("image/jpeg", 0.9) };
   return wallpaperArt[key];
+}
+
+// A small picture for the swatches and the slide rail: quick to paint, and light enough to rebuild the rail on every key press
+function getWallpaperThumb(key) {
+  if (!wallpaperThumbs[key]) wallpaperThumbs[key] = paintWallpaper(key, 0.12).toDataURL("image/jpeg", 0.85);
+  return wallpaperThumbs[key];
+}
+
+// The export paints each wallpaper at the export's own size so the grain stays sharp. Kept only while one export runs (each is about 23 MB).
+const exportWallpapers = new Map();
+function getExportWallpaper(key, width) {
+  const id = key + "@" + width;
+  if (!exportWallpapers.has(id)) exportWallpapers.set(id, paintWallpaper(key, width / WALLPAPER_W));
+  return exportWallpapers.get(id);
 }
 
 // The slide's wallpaper key, or null for a photo slide. A text-only slide without one gets cream paper.
@@ -966,12 +1015,22 @@ function getWallpaperKey(slide) {
 
 // Makes the slide a text-only slide on that wallpaper, with the text shown and coloured to read well on it
 function applyWallpaper(slide, key) {
+  // Remember the photo slide's look, so Photo can put it back
+  if (slide.layout !== "text-only") slide.photoLook = { layout: slide.layout, backdrop: slide.backdrop, contrast: slide.contrast, borderColor: slide.borderColor };
   slide.layout = "text-only";
   slide.wallpaper = key;
   slide.hideText = false;
   slide.backdrop = "none";
   slide.contrast = WALLPAPERS[key].text;
   slide.borderColor = WALLPAPERS[key].border;
+}
+
+// Turns a text-only slide back into a photo slide with the layout, tint and colours it had before. A layout passed in wins.
+function restorePhotoLook(slide, layout) {
+  const look = slide.photoLook || {};
+  slide.layout = layout || (look.layout && look.layout !== "text-only" ? look.layout : "photo-first");
+  ["backdrop", "contrast", "borderColor"].forEach((key) => { if (look[key]) slide[key] = look[key]; });
+  delete slide.photoLook;
 }
 
 const CONTRAST_COLOURS = { standard: "#10191d", cream: "#fffaf0", gold: "#c89834", teal: "#1e8885", blue: "#0c3150" };
@@ -1309,6 +1368,7 @@ const COPY_SUFFIX = /(\s*[-_]?\s*copy(\s*\d+)?|\s*\(\d+\))+$/;
 function findDuplicatePhotos() {
   const photos = [];
   slides.forEach((slide, index) => {
+    if (slide.layout === "text-only") return; // its photo is kept but not shown or exported
     [slide.imageUrl && slide.imageName, slide.imageUrl2 && slide.imageName2].forEach((name) => {
       if (name) photos.push({ name, index, base: name.toLowerCase().replace(/\.[^.]+$/, "") });
     });
@@ -1363,10 +1423,10 @@ function renderRail() {
     
     const thumbPosition = getPhotoPosition(slide);
     const thumbWallpaper = getWallpaperKey(slide);
-    let bgStyle = thumbWallpaper ? `background-image: url(${getWallpaperArt(thumbWallpaper).url});` : slide.imageUrl ? `background-image: url(${slide.imageUrl}); background-position: ${thumbPosition.x}% ${thumbPosition.y}%;` : `background: #0c3150;`;
+    let bgStyle = thumbWallpaper ? `background-image: url(${getWallpaperThumb(thumbWallpaper)});` : slide.imageUrl ? `background-image: url(${slide.imageUrl}); background-position: ${thumbPosition.x}% ${thumbPosition.y}%;` : `background: #0c3150;`;
     let thumbText = slide.headline ? slide.headline.substring(0, 20) + "..." : slide.stage || "Slide " + (index + 1);
     
-    item.innerHTML = `<span class="thumb-photo fit-${slide.imageFit}" style="${bgStyle}"></span>
+    item.innerHTML = `<span class="thumb-photo fit-${thumbWallpaper ? "cover" : slide.imageFit}" style="${bgStyle}"></span>
                       <span class="thumb-copy" style="background: rgba(255,250,240,0.85); color: #10191d;">
                         <span class="thumb-title" style="font-family: ${getFont(slide).family.replace(/"/g, "'")};">${thumbText}</span>
                       </span>`;
@@ -1567,7 +1627,7 @@ function syncFromEditor() {
   if (fields.focal2.value !== "custom") {
     setPhotoPosition(slide, { x: 50, y: fields.focal2.value === "top" ? 0 : fields.focal2.value === "bottom" ? 100 : 50 }, true);
   }
-  const becameTextOnly = slide.layout !== "text-only" && fields.layout.value === "text-only";
+  const previousLayout = slide.layout;
   slide.layout = fields.layout.value;
   slide.imageFit = fields.imageFit.value;
   slide.backdrop = fields.backdrop.value;
@@ -1581,8 +1641,12 @@ function syncFromEditor() {
   if (slide.frame === "custom" || slide.frameColor) slide.frameColor = fields.frameColor.value;
   fields.frameColor.classList.toggle("hidden", slide.frame !== "custom");
   slide.borderColor = fields.borderColor.value;
-  if (becameTextOnly) {
+  if (previousLayout !== "text-only" && slide.layout === "text-only") {
+    slide.layout = previousLayout; // so applyWallpaper remembers the photo layout
     applyWallpaper(slide, WALLPAPERS[slide.wallpaper] ? slide.wallpaper : "paper");
+    fillEditor();
+  } else if (previousLayout === "text-only" && slide.layout !== "text-only") {
+    restorePhotoLook(slide, slide.layout);
     fillEditor();
   }
   
@@ -1725,6 +1789,7 @@ async function checkPhotoForAi(source) {
 }
 
 function aiReasonsFor(slide) {
+  if (slide.layout === "text-only") return []; // its photo is kept but not shown or exported
   return [
     ...(slide.imageUrl && slide.aiFlags ? slide.aiFlags : []),
     ...(slide.imageUrl2 && slide.aiFlags2 ? slide.aiFlags2 : []),
@@ -1794,7 +1859,8 @@ document.getElementById('folder-upload').addEventListener('change', async functi
   let firstFilled = -1;
   let flagged = 0;
   for (const file of files) {
-    while (slideIndex < slides.length && slides[slideIndex].imageUrl) slideIndex++;
+    // Text-only slides show no photo, so they are not empty slides to fill
+    while (slideIndex < slides.length && (slides[slideIndex].imageUrl || slides[slideIndex].layout === "text-only")) slideIndex++;
     if (slideIndex === slides.length) slides.push(createBlankSlide());
     if (firstFilled === -1) firstFilled = slideIndex;
     slides[slideIndex].imageName = file.name;
@@ -1869,7 +1935,7 @@ const swatchRow = document.getElementById("wallpaper-swatches");
   swatch.addEventListener("click", () => {
     const slide = slides[activeIndex];
     if (key === "photo") {
-      if (slide.layout === "text-only") slide.layout = "photo-first";
+      if (slide.layout === "text-only") restorePhotoLook(slide);
     } else {
       applyWallpaper(slide, key);
     }
@@ -1885,7 +1951,7 @@ function paintSwatchPictures() {
   const next = () => {
     const key = keys.shift();
     if (!key) return;
-    swatchRow.querySelector(`[data-wallpaper="${key}"]`).style.backgroundImage = `url(${getWallpaperArt(key).url})`;
+    swatchRow.querySelector(`[data-wallpaper="${key}"]`).style.backgroundImage = `url(${getWallpaperThumb(key)})`;
     setTimeout(next, 0);
   };
   setTimeout(next, 0);
@@ -1895,21 +1961,32 @@ function updateWallpaperSwatches(slide) {
   const current = getWallpaperKey(slide) || "photo";
   swatchRow.querySelectorAll(".wallpaper-swatch").forEach((swatch) => {
     swatch.setAttribute("aria-checked", String(swatch.dataset.wallpaper === current));
+    // One Tab stop for the group, as a radio group has; the arrow keys move between swatches
+    swatch.tabIndex = swatch.dataset.wallpaper === current ? 0 : -1;
   });
   document.getElementById("wallpaper-name").textContent = current === "photo" ? "Photo" : WALLPAPERS[current].label;
 }
+
+swatchRow.addEventListener("keydown", (e) => {
+  const step = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 }[e.key];
+  if (!step) return;
+  e.preventDefault();
+  e.stopPropagation(); // not the slide-switching arrow keys
+  const swatches = [...swatchRow.querySelectorAll(".wallpaper-swatch")];
+  const next = swatches[(swatches.indexOf(document.activeElement) + step + swatches.length) % swatches.length];
+  next.click();
+  next.focus();
+});
 
 document.getElementById("add-text-slide").addEventListener("click", () => {
   const slide = createBlankSlide();
   // Follows the open slide's wallpaper, so a run of text slides keeps one look
   applyWallpaper(slide, getWallpaperKey(slides[activeIndex]) || "paper");
-  slide.headline = "Your headline here";
   slides.splice(activeIndex + 1, 0, slide);
   activeIndex++;
   updateInterface();
   fields.headline.focus();
-  fields.headline.select();
-  setMessage("Text slide added. Pick a wallpaper and type your words.");
+  setMessage("Text slide added. Type your headline, and pick a wallpaper above.");
 });
 
 document.getElementById("inline-previous").addEventListener("click", () => {
@@ -2065,7 +2142,7 @@ async function drawSlideOnCanvas(ctx, slide, targetW, targetH) {
 
   const wallpaperKey = getWallpaperKey(slide);
   if (wallpaperKey) {
-    ctx.drawImage(getWallpaperArt(wallpaperKey).canvas, 0, 0, targetW, targetH);
+    ctx.drawImage(getExportWallpaper(wallpaperKey, targetW), 0, 0, targetW, targetH);
   }
 
   const img1 = wallpaperKey ? null : await loadImage(slide.imageUrl);
@@ -2206,14 +2283,18 @@ async function renderSlidesToFiles({ mimeType, quality, extension }, slideIndice
 
   const indicesToProcess = slideIndices || Array.from({length: slides.length}, (_, i) => i);
   
-  for (let i = 0; i < indicesToProcess.length; i++) {
-    const index = indicesToProcess[i];
-    if (index >= 0 && index < slides.length) {
-      await drawSlideOnCanvas(ctx, slides[index], EXPORT_W, EXPORT_H);
-      const blob = await canvasToBlob(canvas, mimeType, quality);
-      const name = `carousel-slide-${String(index + 1).padStart(2, "0")}.${extension}`;
-      files.push(new File([blob], name, { type: mimeType }));
+  try {
+    for (let i = 0; i < indicesToProcess.length; i++) {
+      const index = indicesToProcess[i];
+      if (index >= 0 && index < slides.length) {
+        await drawSlideOnCanvas(ctx, slides[index], EXPORT_W, EXPORT_H);
+        const blob = await canvasToBlob(canvas, mimeType, quality);
+        const name = `carousel-slide-${String(index + 1).padStart(2, "0")}.${extension}`;
+        files.push(new File([blob], name, { type: mimeType }));
+      }
     }
+  } finally {
+    exportWallpapers.clear(); // the full-size wallpapers are big, so let them go
   }
 
   return files;
