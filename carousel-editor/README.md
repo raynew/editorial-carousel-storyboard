@@ -38,6 +38,7 @@ Each item in the `slides` array is one card:
 | `frame` | Polaroid photo frame: `none` (default), `white`, `cream`, `black`, `gold`, `teal`, `blue`, or `custom` |
 | `frameColor` | The hex colour picked for a `custom` frame, e.g. `#d9534f` |
 | `borderColor` | Inner border line colour: `gold` (default), `cream`, `white`, `black`, `teal`, `blue` |
+| `aiFlags` / `aiFlags2` | Reasons the metadata of photo 1 / photo 2 gives for generative AI use, e.g. `["Midjourney"]`. Empty when none were found |
 | `textOffsets` | Where each text piece was dragged, e.g. `{ "headline": { "x": 0, "y": 12.5 } }`, as % of card width (x) and height (y) |
 
 Older backups without these fields open with the defaults.
@@ -93,6 +94,19 @@ Drag any text piece on the preview to move it. It can't be dragged off the card.
 ### `findDuplicatePhotos()`
 
 Scans the photo file names on all slides and groups possible duplicates, ignoring case, extension, and copy markers (`IMG_1 (1).jpg`, `IMG_1 - Copy.jpg`). A bare `(1)` only counts when the unnumbered name is also present. `renderRail()` badges the matching thumbs and lists the groups above the rail. It only compares names, so photos that differ but share a name are flagged too, and nothing is removed automatically.
+
+### AI metadata check
+
+Each photo is checked when it's uploaded, singly or by folder. `detectAiMetadata(bytes)` reads only the metadata parts of the file (JPEG APP and comment segments, PNG text chunks including compressed ones, WebP metadata chunks, or the start and end of other formats). It looks for markers that generative AI tools write:
+
+- IPTC digital source types `trainedAlgorithmicMedia` (AI-generated), `compositeWithTrainedAlgorithmicMedia` (edited with AI, e.g. Photoshop Generative Fill) and `compositeSynthetic`, which C2PA Content Credentials also use
+- Stable Diffusion generation settings and ComfyUI workflows in PNG text
+- Tool names such as Midjourney, DALL·E, OpenAI, Adobe Firefly, Google Imagen/Gemini, NovelAI, Ideogram, Leonardo.Ai, FLUX and Meta AI
+- Text labels like "AI-generated"
+
+A flagged photo gets an amber **AI** badge on its thumb, a warning under its upload field, and a line in the notice above the rail. Nothing is blocked or removed. Backups saved before this check are scanned when they're loaded.
+
+It only reads what the metadata says. Social platforms, messaging apps and screenshots often strip metadata, so a photo with no warning may still be AI-generated, and a real photo whose description mentions one of these tools will be flagged.
 
 ### Folder upload
 
