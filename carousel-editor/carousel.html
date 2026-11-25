@@ -271,6 +271,7 @@ textarea.field-control { min-height: 84px; resize: vertical; }
 .thumb-item:active { cursor: grabbing; }
 .thumb-item:hover { transform: translateY(-2px); }
 .thumb-item.is-duplicate { border-color: #b65045; }
+.thumb-item.is-ai { border-color: #c98a12; }
 .thumb-item.is-active { border-color: var(--teal); box-shadow: 0 0 0 3px rgba(30, 136, 133, 0.18); }
 .thumb-item.is-dragging { opacity: 0.4; transform: scale(0.95); }
 .thumb-item.is-selected { box-shadow: 0 0 0 3px var(--gold); }
@@ -284,6 +285,10 @@ textarea.field-control { min-height: 84px; resize: vertical; }
 .thumb-photo { position: absolute; inset: 0; background-size: cover; background-position: center; }
 .thumb-copy { position: relative; z-index: 1; padding: 0.48rem; height: 100%; display: flex; flex-direction: column; justify-content: flex-end; pointer-events: none; }
 .thumb-title { font-family: "Playfair Display", serif; font-size: 0.68rem; font-weight: 700; line-height: 1.02; pointer-events: none; }
+.thumb-ai { position: absolute; top: 4px; left: 4px; z-index: 2; padding: 2px 6px; border-radius: 4px; background: #c98a12; color: #10191d; font-size: 0.58rem; font-weight: 800; pointer-events: none; }
+.thumb-ai.below-duplicate { top: 22px; }
+.ai-warning { margin-top: 0.35rem; padding: 0.35rem 0.5rem; border-radius: 0.375rem; background: #fbe9c2; color: #7a5410; font-size: 0.75rem; font-weight: 700; }
+.ai-warning.hidden { display: none; }
 .thumb-duplicate { position: absolute; top: 4px; left: 4px; right: 24px; z-index: 2; padding: 2px 0; border-radius: 4px; background: #b65045; color: #fffaf0; font-size: 0.58rem; font-weight: 800; text-align: center; pointer-events: none; }
 
 .workspace-grid.text-collapsed { grid-template-columns: minmax(0, 1.25fr) minmax(330px, 0.85fr); }
@@ -361,11 +366,13 @@ textarea.field-control { min-height: 84px; resize: vertical; }
             <label class="block text-sm font-bold mb-2 text-[#fffaf0]">Upload Photo 1</label>
             <input type="file" id="image-upload" accept="image/*" class="field-control bg-[#fffaf0] text-[#10191d] text-xs">
             <p id="image-name" class="mt-1 text-xs text-[#d9e3de] truncate" aria-live="polite"></p>
+            <p id="image-ai-warning" class="ai-warning hidden" role="alert"></p>
           </div>
           <div id="upload-2-container" style="display: none;">
             <label class="block text-sm font-bold mb-2 text-[#fffaf0] text-opacity-80">Upload Photo 2 (Stacked)</label>
             <input type="file" id="image-upload-2" accept="image/*" class="field-control bg-[#fffaf0] text-[#10191d] text-xs">
             <p id="image-name-2" class="mt-1 text-xs text-[#d9e3de] truncate" aria-live="polite"></p>
+            <p id="image-ai-warning-2" class="ai-warning hidden" role="alert"></p>
           </div>
         </div>
 
@@ -585,6 +592,7 @@ textarea.field-control { min-height: 84px; resize: vertical; }
             <p id="rail-count" class="text-xs font-bold uppercase tracking-[0.12em] text-[#617078]">6 slides</p>
           </div>
         </div>
+        <p id="ai-notice" class="hidden mb-3 rounded-md bg-[#fbe9c2] px-3 py-2 text-xs font-bold text-[#7a5410]"></p>
         <p id="duplicate-notice" class="hidden mb-3 rounded-md bg-[#f8dfd8] px-3 py-2 text-xs font-bold text-[#9d382f]"></p>
         <div id="thumbnail-rail" class="relative flex flex-wrap gap-3 pb-3"></div>
         <!-- Below the thumbs, so appearing never shifts them under the pointer mid-selection -->
@@ -771,6 +779,12 @@ function updatePhotoControls(slide) {
   document.getElementById("focal-label-1").textContent = isStacked ? "Focal point 1 (Top Image)" : "Focal point";
   document.getElementById("image-name").textContent = slide.imageName || "";
   document.getElementById("image-name-2").textContent = slide.imageName2 || "";
+  [["image-ai-warning", slide.imageUrl && slide.aiFlags], ["image-ai-warning-2", slide.imageUrl2 && slide.aiFlags2]].forEach(([id, flags]) => {
+    const warning = document.getElementById(id);
+    const reasons = flags || [];
+    warning.classList.toggle("hidden", reasons.length === 0);
+    warning.textContent = reasons.length ? "⚠ Metadata says generative AI was used: " + reasons.join(", ") : "";
+  });
 }
 
 function fillEditor() {
@@ -986,12 +1000,22 @@ function renderDuplicateNotice(duplicates) {
   }).join("; ");
 }
 
+function renderAiNotice() {
+  const notice = document.getElementById("ai-notice");
+  const flagged = slides.map((slide, index) => ({ index, reasons: aiReasonsFor(slide) })).filter((entry) => entry.reasons.length);
+  notice.classList.toggle("hidden", flagged.length === 0);
+  notice.textContent = flagged.length === 0 ? "" : "⚠ Generative AI in photo metadata: " +
+    flagged.map((entry) => `slide ${entry.index + 1} (${[...new Set(entry.reasons)].join(", ")})`).join("; ") +
+    ". This only reads metadata, so photos without these markers may still be AI.";
+}
+
 function renderRail() {
   const rail = document.getElementById("thumbnail-rail");
   rail.innerHTML = "";
 
   const duplicates = findDuplicatePhotos();
   renderDuplicateNotice(duplicates);
+  renderAiNotice();
 
   slides.forEach((slide, index) => {
     // A div rather than a button, because Firefox will not drag buttons
@@ -1016,6 +1040,13 @@ function renderRail() {
       item.classList.add("is-duplicate");
       item.title = "Possible duplicate: " + duplicateNames.join(", ");
       item.insertAdjacentHTML("beforeend", `<span class="thumb-duplicate">Duplicate</span>`);
+    }
+
+    const aiReasons = aiReasonsFor(slide);
+    if (aiReasons.length > 0) {
+      item.classList.add("is-ai");
+      item.title = (item.title ? item.title + "\n" : "") + "Metadata says generative AI was used: " + [...new Set(aiReasons)].join(", ");
+      item.insertAdjacentHTML("beforeend", `<span class="thumb-ai${duplicateNames.length > 0 ? " below-duplicate" : ""}">AI</span>`);
     }
 
     const check = document.createElement("input");
@@ -1237,6 +1268,128 @@ Object.values(fields).forEach(field => {
   field.addEventListener("change", syncFromEditor);
 });
 
+// AI METADATA CHECK
+// Reads only the metadata parts of an image (EXIF, XMP, IPTC, PNG text chunks, C2PA Content Credentials),
+// never the pixels, and looks for markers that generative AI tools write. It can only see what the metadata says:
+// most social platforms and screenshots strip metadata, so a clean result does not prove a photo is not AI.
+const AI_MARKERS = [
+  { label: "IPTC source type: AI-generated", pattern: /trainedAlgorithmicMedia(?!\w)/ },
+  { label: "IPTC source type: edited with generative AI", pattern: /compositeWithTrainedAlgorithmicMedia/ },
+  { label: "IPTC source type: synthetic composite", pattern: /compositeSynthetic/ },
+  { label: "Stable Diffusion settings", pattern: /Steps: \d+, Sampler: / },
+  { label: "ComfyUI workflow", pattern: /"class_type"\s*:/ },
+  { label: "Midjourney", pattern: /midjourney/i },
+  { label: "DALL·E", pattern: /DALL[-·Ee ]{0,3}E\b/ },
+  { label: "OpenAI / ChatGPT", pattern: /\b(OpenAI|ChatGPT|GPT-4o|gpt-image)\b/ },
+  { label: "Adobe Firefly", pattern: /Firefly/ },
+  { label: "Google Imagen / Gemini", pattern: /Google Imagen|Imagen \d|Google Gemini|Gemini Image|Made with Google AI|SynthID/ },
+  { label: "Stable Diffusion", pattern: /stable[ _-]?diffusion|\bSDXL\b|Automatic1111|InvokeAI|Fooocus/i },
+  { label: "NovelAI", pattern: /NovelAI/ },
+  { label: "Ideogram", pattern: /Ideogram/ },
+  { label: "Leonardo.Ai", pattern: /Leonardo\.?Ai/i },
+  { label: "Black Forest Labs FLUX", pattern: /Black Forest Labs|FLUX\.1/ },
+  { label: "Microsoft Designer / Bing Image Creator", pattern: /Bing Image Creator|Microsoft Designer/ },
+  { label: "Meta AI", pattern: /\bImagine with Meta\b|\bMeta AI\b/ },
+  { label: "Runway", pattern: /RunwayML|Runway Gen/ },
+];
+
+const latin1 = new TextDecoder("latin1");
+
+async function inflate(bytes) {
+  try {
+    const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream("deflate"));
+    return new Uint8Array(await new Response(stream).arrayBuffer());
+  } catch (err) {
+    return new Uint8Array(0);
+  }
+}
+
+// Returns the metadata bytes of a JPEG, PNG or WebP as text; other formats fall back to the head and tail of the file
+async function extractMetadataText(bytes) {
+  const parts = [];
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  const ascii = (start, length) => latin1.decode(bytes.subarray(start, start + length));
+
+  if (bytes[0] === 0xff && bytes[1] === 0xd8) {
+    // JPEG: APPn and COM segments until the image data starts
+    let offset = 2;
+    while (offset + 4 <= bytes.length && bytes[offset] === 0xff) {
+      const marker = bytes[offset + 1];
+      if (marker === 0xda || marker === 0xd9) break;
+      if (marker === 0xd8 || (marker >= 0xd0 && marker <= 0xd7) || marker === 0x01 || marker === 0xff) { offset += marker === 0xff ? 1 : 2; continue; }
+      const length = view.getUint16(offset + 2);
+      if ((marker >= 0xe0 && marker <= 0xef) || marker === 0xfe) parts.push(bytes.subarray(offset + 4, offset + 2 + length));
+      offset += 2 + length;
+    }
+  } else if (ascii(1, 3) === "PNG") {
+    // PNG: every chunk except the pixel data, inflating compressed text chunks
+    let offset = 8;
+    while (offset + 8 <= bytes.length) {
+      const length = view.getUint32(offset);
+      const type = ascii(offset + 4, 4);
+      const data = bytes.subarray(offset + 8, offset + 8 + length);
+      if (type === "IEND") break;
+      if (type === "zTXt") {
+        const nul = data.indexOf(0);
+        parts.push(data.subarray(0, nul), await inflate(data.subarray(nul + 2)));
+      } else if (type === "iTXt") {
+        const nul = data.indexOf(0);
+        if (data[nul + 1] === 1) {
+          let textStart = nul + 3;
+          for (let n = 0; n < 2; n++) textStart = data.indexOf(0, textStart) + 1;
+          parts.push(data.subarray(0, textStart), await inflate(data.subarray(textStart)));
+        } else parts.push(data);
+      } else if (type !== "IDAT") parts.push(data);
+      offset += 12 + length;
+    }
+  } else if (ascii(0, 4) === "RIFF" && ascii(8, 4) === "WEBP") {
+    // WebP: every chunk except image frames
+    let offset = 12;
+    while (offset + 8 <= bytes.length) {
+      const type = ascii(offset, 4);
+      const length = view.getUint32(offset + 4, true);
+      if (!["VP8 ", "VP8L", "VP8X", "ALPH", "ANMF"].includes(type)) parts.push(bytes.subarray(offset + 8, offset + 8 + length));
+      offset += 8 + length + (length % 2);
+    }
+  } else {
+    parts.push(bytes.subarray(0, 512 * 1024), bytes.subarray(Math.max(0, bytes.length - 128 * 1024)));
+  }
+  return parts.map((part) => latin1.decode(part)).join("\n");
+}
+
+// Returns a list of reasons the metadata says the image was made or edited with generative AI, or [] if none
+async function detectAiMetadata(bytes) {
+  const text = await extractMetadataText(bytes);
+  const reasons = AI_MARKERS.filter((marker) => marker.pattern.test(text)).map((marker) => marker.label);
+  // "AI-generated" text labels some tools add, e.g. in the XMP or PNG description
+  if (/\b(AI[- ]generated|Generated (with|by) AI|Made with AI)\b/i.test(text)) reasons.push("Labelled as AI-generated");
+  return [...new Set(reasons)];
+}
+
+function dataUrlToBytes(dataUrl) {
+  const base64 = dataUrl.slice(dataUrl.indexOf(",") + 1);
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return bytes;
+}
+
+async function checkPhotoForAi(source) {
+  try {
+    const bytes = typeof source === "string" ? dataUrlToBytes(source) : new Uint8Array(await source.arrayBuffer());
+    return await detectAiMetadata(bytes);
+  } catch (err) {
+    return [];
+  }
+}
+
+function aiReasonsFor(slide) {
+  return [
+    ...(slide.imageUrl && slide.aiFlags ? slide.aiFlags : []),
+    ...(slide.imageUrl2 && slide.aiFlags2 ? slide.aiFlags2 : []),
+  ];
+}
+
 // Helper to convert uploaded local image files into Base64 strings for self-contained saving
 function fileToDataUrl(file) {
   return new Promise((resolve) => {
@@ -1251,8 +1404,12 @@ document.getElementById('image-upload').addEventListener('change', async functio
   if (file) {
     const slide = slides[activeIndex];
     slide.imageName = file.name;
+    slide.aiFlags = [];
     updatePhotoControls(slide);
     slide.imageUrl = await fileToDataUrl(file);
+    slide.aiFlags = await checkPhotoForAi(file);
+    if (slide === slides[activeIndex]) updatePhotoControls(slide);
+    if (slide.aiFlags.length) setMessage("Warning: this photo's metadata says it was made or edited with generative AI (" + slide.aiFlags.join(", ") + ").");
     paintCard(slides[activeIndex]);
     renderRail();
   }
@@ -1263,8 +1420,12 @@ document.getElementById('image-upload-2').addEventListener('change', async funct
   if (file) {
     const slide = slides[activeIndex];
     slide.imageName2 = file.name;
+    slide.aiFlags2 = [];
     updatePhotoControls(slide);
     slide.imageUrl2 = await fileToDataUrl(file);
+    slide.aiFlags2 = await checkPhotoForAi(file);
+    if (slide === slides[activeIndex]) updatePhotoControls(slide);
+    if (slide.aiFlags2.length) setMessage("Warning: this photo's metadata says it was made or edited with generative AI (" + slide.aiFlags2.join(", ") + ").");
     paintCard(slides[activeIndex]);
     renderRail();
   }
@@ -1290,16 +1451,19 @@ document.getElementById('folder-upload').addEventListener('change', async functi
   setMessage(`Loading ${files.length} photos...`);
   let slideIndex = 0;
   let firstFilled = -1;
+  let flagged = 0;
   for (const file of files) {
     while (slideIndex < slides.length && slides[slideIndex].imageUrl) slideIndex++;
     if (slideIndex === slides.length) slides.push(createBlankSlide());
     if (firstFilled === -1) firstFilled = slideIndex;
     slides[slideIndex].imageName = file.name;
     slides[slideIndex].imageUrl = await fileToDataUrl(file);
+    slides[slideIndex].aiFlags = await checkPhotoForAi(file);
+    if (slides[slideIndex].aiFlags.length) flagged++;
   }
   activeIndex = firstFilled;
   updateInterface();
-  setMessage(`Loaded ${files.length} photos.`);
+  setMessage(`Loaded ${files.length} photos.` + (flagged ? ` Warning: ${flagged} ${flagged === 1 ? "has" : "have"} metadata saying generative AI was used.` : ""));
 });
 
 // SELF-CONTAINED PROJECT BACKUP (Embeds photos into JSON)
@@ -1313,6 +1477,16 @@ document.getElementById('export-project').addEventListener('click', () => {
   downloadAnchor.remove();
   setMessage("Project and photos backed up into JSON successfully!");
 });
+
+// Backups saved before the AI check existed have no flags yet, so scan their embedded photos
+async function recheckAiFlags(importedSlides) {
+  let checked = false;
+  for (const slide of importedSlides) {
+    if (slide.imageUrl && !slide.aiFlags) { slide.aiFlags = await checkPhotoForAi(slide.imageUrl); checked = true; }
+    if (slide.imageUrl2 && !slide.aiFlags2) { slide.aiFlags2 = await checkPhotoForAi(slide.imageUrl2); checked = true; }
+  }
+  if (checked) updateInterface();
+}
 
 // SELF-CONTAINED PROJECT RESTORE
 document.getElementById('import-project').addEventListener('change', (e) => {
@@ -1328,6 +1502,7 @@ document.getElementById('import-project').addEventListener('change', (e) => {
         activeIndex = 0;
         updateInterface();
         setMessage("Project and attached photos successfully restored!");
+        recheckAiFlags(importedSlides);
       } else {
         setMessage("Error: Invalid backup file structure.");
       }
